@@ -18,4 +18,10 @@ A SimPy-based simulation framework for analyzing the coexistence mechanisms betw
    cd coexistence-simulator
    
 2. **Install dependencies:**:
-   pip install simpy pandas matplotlib click
+   ```bash
+   pip install simpy pandas matplotlib click scipy
+   ```
+   or
+
+   ```bash
+   pip install -r requirements.txt
