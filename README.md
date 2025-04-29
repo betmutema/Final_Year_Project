@@ -16,3 +16,6 @@ A SimPy-based simulation framework for analyzing the coexistence mechanisms betw
    ```bash
    git clone https://github.com/your-username/coexistence-simulator.git
    cd coexistence-simulator
+   
+2. **Install dependencies:**:
+   pip install simpy pandas matplotlib click
