@@ -8,10 +8,31 @@ import warnings
 import glob
 
 
-def set_viridis_color_palette(a, b, color_amount):
-    cmap = mpl.colormaps['viridis']
-    color = cmap(np.linspace(a, b, color_amount))
-    mpl.rcParams['axes.prop_cycle'] = cycler('color', color)
+# def set_viridis_color_palette(a, b, color_amount):
+#     cmap = mpl.colormaps['viridis']
+#     color = cmap(np.linspace(a, b, color_amount))
+#     mpl.rcParams['axes.prop_cycle'] = cycler('color', color)
+
+def set_distinct_color_palette():
+    """
+    Sets a color palette with visually distinct colors suitable for visualization
+    Uses a colorblind-friendly palette based on Color Brewer and ColorSafe recommendations
+    """
+    # High-contrast and colorblind-friendly palette
+    distinct_colors = [
+        '#0072B2',  # blue
+        '#D55E00',  # vermillion/orange
+        '#009E73',  # green
+        '#CC79A7',  # pink
+        '#E69F00',  # orange/amber
+        '#56B4E9',  # sky blue
+        '#F0E442',  # yellow
+        '#000000',  # black
+    ]
+    mpl.rcParams['axes.prop_cycle'] = cycler('color', distinct_colors)
+
+    # Return the colors in case needed elsewhere
+    return distinct_colors
 
 
 def setup_plot(xlabel='Number of Wi-Fi/NR-U Nodes', ylabel=None, ylim=None):
@@ -64,7 +85,8 @@ def load_data(filepath):
 
 def process_nru_rs_vs_nru_gap():
     print("\n=== Processing NR-U RS vs NR-U GAP Comparison ===\n")
-    set_viridis_color_palette(0.0, 1.0, 7)
+    # set_viridis_color_palette(0.0, 1.0, 7)
+    set_distinct_color_palette()
 
     print("Loading NR-U RS and GAP mode data...")
     rs_data = load_data('output/simulation_results/nru-only_rs-mode_raw-data.csv')
@@ -118,6 +140,84 @@ def process_nru_rs_vs_nru_gap():
             config['output']
         )
 
+def process_nru_rs_vs_nru_gap_vs_wifi():
+    print("\n=== Processing NR-U RS vs NR-U GAP vs Wi-Fi Comparison ===\n")
+    # set_viridis_color_palette(0.0, 1.0, 7)
+    set_distinct_color_palette()
+
+    print("Loading Wi-Fi, NR-U RS and GAP mode data...")
+    rs_data = load_data('output/simulation_results/nru-only_rs-mode_raw-data.csv')
+    gap_data = load_data('output/simulation_results/nru-only_gap-mode_raw-data.csv')
+    wifi_data = glob.glob('output/simulation_results/wifi-only_nodes-*-*_raw-data.csv')
+
+    if not wifi_data:
+        print("  No Wi-Fi data files found with pattern 'wifi-only_nodes-*-*_raw-data.csv'")
+        return
+
+    # Load and combine all Wi-Fi data files
+    wifi_data_frames = []
+    for file in wifi_data:
+        data = load_data(file)
+        if data is not None:
+            wifi_data_frames.append(data)
+
+    if not wifi_data_frames:
+        print("  Failed to load any Wi-Fi data files")
+        return
+
+    # Combine all Wi-Fi data frames
+    wifi_data = pd.concat(wifi_data_frames)
+    print(f"  Combined {len(wifi_data_frames)} Wi-Fi data files ({len(wifi_data)} rows total)")
+
+    if rs_data is None or gap_data is None or wifi_data is None:
+        return
+
+    # Group data by nru_node_count and calculate means for different metrics
+    metrics = ['channel_occupancy', 'channel_efficiency', 'collision_probability']
+    data_by_metric = {}
+    print("Calculating metrics for comparison...")
+
+    for metric in metrics:
+        rs_metric = rs_data.groupby(['nru_node_count'])[f'nru_{metric}'].mean()
+        gap_metric = gap_data.groupby(['nru_node_count'])[f'nru_{metric}'].mean()
+        wifi_metric = wifi_data.groupby(['wifi_node_count'])[f'wifi_{metric}'].mean()
+        data_by_metric[metric] = (rs_metric, gap_metric, wifi_metric)
+
+    # Define plot configurations
+    plot_configs = {
+        'channel_occupancy': {
+            'ylim': (0.6, 1),
+            'ylabel': 'Channel Occupancy',
+            'output': 'output/metrics_visualizations/comparative_analysis/nru_modes/nru_rs_vs_gap_wifi_cot.png'
+        },
+        'channel_efficiency': {
+            'ylim': (0.6, 1),
+            'ylabel': 'Channel Efficiency',
+            'output': 'output/metrics_visualizations/comparative_analysis/nru_modes/nru_rs_vs_gap_wifi_eff.png'
+        },
+        'collision_probability': {
+            'ylim': (0, 0.6),
+            'ylabel': 'Collision Probability',
+            'output': 'output/metrics_visualizations/comparative_analysis/nru_modes/nru_rs_vs_gap_wifi_col.png'
+        }
+    }
+
+    # Create plots for each metric
+    print("\nGenerating comparison plots for NR-U RS vs GAP vs Wi-Fi:")
+    for metric, (rs_data, gap_data, wifi_data) in data_by_metric.items():
+        print(f"  Processing {metric} comparison...")
+        config = plot_configs[metric]
+        plot_metrics(
+            [rs_data, gap_data, wifi_data],  # Include wifi_data in the data list
+            ["o", "o", "o"],  # Add a marker for wifi
+            ["-", "-", "-"],  # Add a linestyle for wifi
+            ['NR-U rs', 'NR-U gap', 'Wi-Fi'],  # Update legend labels
+            config['ylim'],
+            'Number of Wi-Fi/NR-U Nodes',
+            config['ylabel'],
+            config['output']
+        )
+        print("**********************Started*********************")
 
 def process_coexistence_data(data_file, prefix):
     """Process coexistence data for both NR-U and WiFi"""
@@ -140,7 +240,8 @@ def process_coexistence_data(data_file, prefix):
 
 def process_coexistence_rs_vs_nru_gap():
     print("\n=== Processing Coexistence RS vs GAP Mode Comparison ===\n")
-    set_viridis_color_palette(0.0, 1.0, 8)
+    # set_viridis_color_palette(0.0, 1.0, 8)
+    set_distinct_color_palette()
 
     print("Loading coexistence RS and GAP mode data...")
     rs_results = process_coexistence_data('output/simulation_results/coex_rs-mode_raw-data.csv', 'rs')
@@ -188,7 +289,8 @@ def process_coexistence_rs_vs_nru_gap():
 
 def process_coexistence_gap_sync_vs_desync():
     print("\n=== Processing Coexistence GAP Sync vs Desync Comparison ===\n")
-    set_viridis_color_palette(0.0, 1.0, 6)
+    # set_viridis_color_palette(0.0, 1.0, 6)
+    set_distinct_color_palette()
 
     print("Loading coexistence sync and desync data...")
     desync_results = process_coexistence_data('output/simulation_results/coex_gap-mode_desync-0-1000_raw-data.csv',
@@ -236,7 +338,8 @@ def process_coexistence_gap_sync_vs_desync():
 
 def process_coexistence_nru_gap_desync_adjustcw():
     print("\n=== Processing Coexistence NR-U GAP Desync Adjust CW Comparison ===\n")
-    set_viridis_color_palette(0.0, 1.0, 6)
+    # set_viridis_color_palette(0.0, 1.0, 6)
+    set_distinct_color_palette()
 
     print("Loading disabled backoff and adjusted CW data...")
     disabled_backoff = process_coexistence_data(
@@ -312,6 +415,7 @@ if __name__ == "__main__":
     print(f"Output directory created: {output_dir}")
 
     process_nru_rs_vs_nru_gap()
+    process_nru_rs_vs_nru_gap_vs_wifi()
     process_coexistence_rs_vs_nru_gap()
     process_coexistence_gap_sync_vs_desync()
     process_coexistence_nru_gap_desync_adjustcw()

@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib as mpl
 import re
 import warnings
+from cycler import cycler
 
 
 def extract_parameters(filename):
@@ -13,12 +14,31 @@ def extract_parameters(filename):
     match = re.search(r"wifi-only_nodes-(\d+-\d+)", filename)
     return match.group(1) if match else "unknown"
 
+def set_distinct_color_palette():
+    """
+    Sets a color palette with visually distinct colors suitable for visualization
+    Uses a colorblind-friendly palette based on Color Brewer and ColorSafe recommendations
+    """
+    # High-contrast and colorblind-friendly palette
+    distinct_colors = [
+        '#0072B2',  # blue
+        '#D55E00',  # vermillion/orange
+        '#009E73',  # green
+        '#CC79A7',  # pink
+        '#E69F00',  # orange/amber
+        '#56B4E9',  # sky blue
+        '#F0E442',  # yellow
+        '#000000',  # black
+    ]
+    mpl.rcParams['axes.prop_cycle'] = cycler('color', distinct_colors)
 
-def set_viridis_color_palette(a=0.0, b=1.0, color_amount=8):
-    cmap = mpl.colormaps['viridis']
-    color = cmap(np.linspace(a, b, color_amount))
-    mpl.rcParams['axes.prop_cycle'] = mpl.cycler('color', color)
+    # Return the colors in case needed elsewhere
+    return distinct_colors
 
+# def set_viridis_color_palette(a=0.0, b=1.0, color_amount=8):
+#     cmap = mpl.colormaps['viridis']
+#     color = cmap(np.linspace(a, b, color_amount))
+#     mpl.rcParams['axes.prop_cycle'] = mpl.cycler('color', color)
 
 def create_plot(x_data, y_data, title, xlabel, ylabel, output_path, ylim=(0, 1), linestyle="-"):
     """Create and save a plot with given data and parameters"""
@@ -405,7 +425,8 @@ def process_all_cw_files():
 
 def main():
     # Set color palette
-    set_viridis_color_palette()
+    # set_viridis_color_palette()
+    set_distinct_color_palette()
 
     print("\n=== Starting Metrics Visualization Process ===\n")
 

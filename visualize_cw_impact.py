@@ -8,12 +8,26 @@ from cycler import cycler
 import re
 import warnings
 
+def set_distinct_color_palette():
+    """
+    Sets a color palette with visually distinct colors suitable for visualization
+    Uses a colorblind-friendly palette based on Color Brewer and ColorSafe recommendations
+    """
+    # High-contrast and colorblind-friendly palette
+    distinct_colors = [
+        '#0072B2',  # blue
+        '#D55E00',  # vermillion/orange
+        '#009E73',  # green
+        '#CC79A7',  # pink
+        '#E69F00',  # orange/amber
+        '#56B4E9',  # sky blue
+        '#F0E442',  # yellow
+        '#000000',  # black
+    ]
+    mpl.rcParams['axes.prop_cycle'] = cycler('color', distinct_colors)
 
-def set_color_palette(cmap_name='viridis', start=0.0, end=1.0, color_amount=4):
-    """Set color palette using any matplotlib colormap"""
-    cmap = mpl.colormaps[cmap_name]
-    color = cmap(np.linspace(start, end, color_amount))
-    mpl.rcParams['axes.prop_cycle'] = cycler(color=color)
+    # Return the colors in case needed elsewhere
+    return distinct_colors
 
 
 def extract_parameters(filename):
@@ -66,7 +80,9 @@ def process_equal_airtime_data(csv_pattern="output/simulation_results/airtime_fa
     print("\n=== Starting Equal Airtime Metrics Visualization Process ===\n")
 
     # Set color palette (without notification)
-    set_color_palette('viridis', 0.0, 1.0, 4)
+    #    set_color_palette('viridis', 0.0, 1.0, 4)
+
+    set_distinct_color_palette()
 
     # Get list of matching CSV files
     simulation_results = glob.glob(csv_pattern)
