@@ -18,7 +18,7 @@ def set_distinct_color_palette():
         '#0072B2',  # blue
         '#D55E00',  # vermillion/orange
         '#009E73',  # green
-        '#CC79A7',  # pink
+        #'#CC79A7',  # pink
         '#E69F00',  # orange/amber
         '#56B4E9',  # sky blue
         '#F0E442',  # yellow
@@ -48,8 +48,8 @@ def create_plot(df, x_col, y_cols, labels, title, xlabel, ylabel, output_path, y
 
     # Plot each data series
     for i, (data, label) in enumerate(zip(grouped_data, labels)):
-        linestyle = '--' if i % 2 == 0 else '-'
-        data.plot(marker="o", linestyle=linestyle, label=label, ax=ax)
+        linestyle = '-' if i % 2 == 0 else '--'
+        data.plot(marker="o", linestyle=linestyle, label=label, ax=ax) if i % 2 == 0 else data.plot(marker="s", linestyle=linestyle, label=label, ax=ax)
 
     ax.set_ylim(*ylim)
     ax.legend(loc = 'best')
@@ -72,7 +72,6 @@ def create_plot(df, x_col, y_cols, labels, title, xlabel, ylabel, output_path, y
     plt.close(fig)
     return output_path
 
-
 def process_equal_airtime_data(csv_pattern="output/simulation_results/airtime_fairness*.csv",
                                output_dir="output/metrics_visualizations/airtime_fairness",
                                show_plots=False):
@@ -80,8 +79,6 @@ def process_equal_airtime_data(csv_pattern="output/simulation_results/airtime_fa
     print("\n=== Starting Equal Airtime Metrics Visualization Process ===\n")
 
     # Set color palette (without notification)
-    #    set_color_palette('viridis', 0.0, 1.0, 4)
-
     set_distinct_color_palette()
 
     # Get list of matching CSV files

@@ -24,7 +24,7 @@ def set_distinct_color_palette():
         '#0072B2',  # blue
         '#D55E00',  # vermillion/orange
         '#009E73',  # green
-        '#CC79A7',  # pink
+        # '#CC79A7',  # pink
         '#E69F00',  # orange/amber
         '#56B4E9',  # sky blue
         '#F0E442',  # yellow
@@ -35,15 +35,10 @@ def set_distinct_color_palette():
     # Return the colors in case needed elsewhere
     return distinct_colors
 
-# def set_viridis_color_palette(a=0.0, b=1.0, color_amount=8):
-#     cmap = mpl.colormaps['viridis']
-#     color = cmap(np.linspace(a, b, color_amount))
-#     mpl.rcParams['axes.prop_cycle'] = mpl.cycler('color', color)
-
 def create_plot(x_data, y_data, title, xlabel, ylabel, output_path, ylim=(0, 1), linestyle="-"):
     """Create and save a plot with given data and parameters"""
     fig, ax = plt.subplots()
-    y_data.plot(marker="o", legend=True, ylim=ylim, linestyle=linestyle)
+    y_data.plot(marker="o", legend=True, ylim=ylim, linestyle='-')
     ax.legend([title])
     ax.set_xlabel(xlabel, fontsize=14)
     ax.set_ylabel(ylabel, fontsize=14)
@@ -58,8 +53,8 @@ def create_plot(x_data, y_data, title, xlabel, ylabel, output_path, ylim=(0, 1),
 def create_dual_plot(x_data1, y_data1, x_data2, y_data2, titles, xlabel, ylabel, output_path, ylim=(0, 1)):
     """Create and save a plot with two data series"""
     fig, ax = plt.subplots()
-    y_data1.plot(marker="o", legend=True, ylim=ylim)
-    y_data2.plot(marker="o", legend=True, ylim=ylim, linestyle='--')
+    y_data1.plot(marker="o", legend=True, ylim=ylim, linestyle='-')
+    y_data2.plot(marker="D", legend=True, ylim=ylim, linestyle='-.')
     ax.legend(titles)
     ax.set_xlabel(xlabel, fontsize=14)
     ax.set_ylabel(ylabel, fontsize=14)
@@ -183,11 +178,7 @@ def plot_nru_metrics(mode):
 
         # Define metrics to plot
         metric_cols = ['nru_channel_occupancy', 'nru_channel_efficiency', 'nru_collision_probability']
-        titles = [
-            f'NR-U ',
-            f'NR-U ',
-            f'NR-U '
-        ]
+        titles = [f'NR-U ', f'NR-U ', f'NR-U ']
 
         output_dir = f'output/metrics_visualizations/individual_systems/nru'
         output_prefix = f"nru_{mode}"
