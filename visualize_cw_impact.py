@@ -18,7 +18,6 @@ def set_distinct_color_palette():
         '#0072B2',  # blue
         '#D55E00',  # vermillion/orange
         '#009E73',  # green
-        #'#CC79A7',  # pink
         '#E69F00',  # orange/amber
         '#56B4E9',  # sky blue
         '#F0E442',  # yellow
@@ -136,15 +135,6 @@ def process_equal_airtime_data(csv_pattern="output/simulation_results/airtime_fa
     # Print summary of generated files
     print("\n=== Summary of Generated Output Files ===")
     print(f"\nTotal number of generated plots: {len(results)}")
-
-    # Group files by directory for cleaner output
-    # output_dirs = sorted(set([os.path.dirname(f) for f in results]))
-    #     for dir in output_dirs:
-    #         files_in_dir = [os.path.basename(f) for f in results if os.path.dirname(f) == dir]
-    #         print(f"\n  {dir} ({len(files_in_dir)} files):")
-    #         for file in sorted(files_in_dir):
-    #             print(f"    - {file}")
-
     print("\n=== Equal Airtime Metrics Visualization Complete ===\n")
     return results
 
