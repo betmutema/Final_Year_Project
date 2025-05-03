@@ -48,6 +48,36 @@ python wifi_node_sweep.py --start_node_number 1 --end_node_number 10
 # NR-U-only sweep (gap mode)
 python nru_node_sweep.py --nru_mode gap --start_node_number 1 --end_node_number 10
 ```
+For detailed parameter explanations, use --help with any ```*_node_sweep.py``` script for example:
+```bash
+python coexistence_node_sweep.py --help
+```
+#### Example Output:
+```bash
+Usage: coexistence_node_sweep.py [OPTIONS]
+
+Options:
+  -r, --runs INTEGER                 Number of simulation runs (default: 10)
+  --seed INTEGER                     Seed for simulation (default: 1)
+  --start_node_number INTEGER        Starting number of nodes (required)
+  --end_node_number INTEGER          Ending number of nodes (required)
+  --simulation_time FLOAT            Simulation duration in μs (default: 100.0)
+  --min_wifi_cw INTEGER              Wi-Fi minimum contention window (default: 0)
+  --max_wifi_cw INTEGER              Wi-Fi maximum contention window (default: 0)
+  --wifi_r_limit INTEGER             Wi-Fi retry limit (default: 3)
+  --mcs_value INTEGER                MCS value (default: 7)
+  --min_nru_cw INTEGER               NR-U minimum contention window (default: 0)
+  --max_nru_cw INTEGER               NR-U maximum contention window (default: 0)
+  --synchronization_slot_duration INTEGER
+                                     Sync slot duration in μs (default: 1000)
+  --max_sync_slot_desync INTEGER     Max gNB desync in μs (default: 1000)
+  --min_sync_slot_desync INTEGER     Min gNB desync in μs (default: 0)
+  --nru_observation_slot INTEGER     NR-U observation slots (default: 3)
+  --mcot INTEGER                     Max NR-U channel occupancy time (ms) (default: 6)
+  --nru_mode [rs|gap]                NR-U mode: 'rs' or 'gap' (default: gap)
+  --help                             Show this message and exit.
+```
+
 ### Analyzing Results
 #### Generate comparative plots from simulation data:
 ```bash
