@@ -17,7 +17,6 @@ def set_distinct_color_palette():
         '#0072B2',  # blue
         '#D55E00',  # vermillion/orange
         '#009E73',  # green
-       # '#CC79A7',  # pink
         '#E69F00',  # orange/amber
         '#56B4E9',  # sky blue
         '#F0E442',  # yellow
@@ -30,7 +29,17 @@ def set_distinct_color_palette():
 
 
 def setup_plot(xlabel='Number of Wi-Fi/NR-U Nodes', ylabel=None, ylim=None):
-    """Create and setup figure and axes with common settings"""
+    """
+    Create and setup figure and axes with common settings
+
+    Args:
+        xlabel: Label for x-axis (default: 'Number of Wi-Fi/NR-U Nodes')
+        ylabel: Label for y-axis (default: None)
+        ylim: Tuple defining y-axis limits (default: None)
+
+    Returns:
+        Tuple of (figure, axes) objects configured with the specified settings
+    """
     fig, ax = plt.subplots()
     ax.set_xlabel(xlabel, fontsize=14)
     if ylabel:
@@ -41,18 +50,36 @@ def setup_plot(xlabel='Number of Wi-Fi/NR-U Nodes', ylabel=None, ylim=None):
 
 
 def save_and_close_figure(fig, filename):
-    """Save figure and close it"""
+    """
+    Save figure to disk and close it to free memory
+
+    Args:
+        fig: matplotlib Figure object to save
+        filename: Path where the figure should be saved
+    """
     # Ensure output directory exists
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     plt.tight_layout()
-    # plt.show()
+    # plt.show()  # Commented out to avoid displaying figures during batch processing
     plt.savefig(filename)
     print(f"  Saved plot: {filename}")
     plt.close(fig)
 
 
 def plot_metrics(data_groups, markers, linestyles, legend_labels, ylim, xlabel, ylabel, output_file):
-    """Generic function to plot metrics"""
+    """
+    Generic function to plot metrics from multiple data groups
+
+    Args:
+        data_groups: List of pandas Series objects containing the data to plot
+        markers: List of marker styles for each data series
+        linestyles: List of line styles for each data series
+        legend_labels: List of labels for the legend
+        ylim: Tuple defining y-axis limits
+        xlabel: Label for x-axis
+        ylabel: Label for y-axis
+        output_file: Path where the figure should be saved
+    """
     fig, ax = setup_plot(xlabel=xlabel, ylabel=ylabel, ylim=ylim)
 
     for data, marker, linestyle, label in zip(data_groups, markers, linestyles, legend_labels):
@@ -60,12 +87,20 @@ def plot_metrics(data_groups, markers, linestyles, legend_labels, ylim, xlabel, 
 
     ax.legend(legend_labels, loc='best')
     # Explicitly set xlabel to override pandas default
-    ax.set_xlabel(xlabel, fontsize=14)  # <-- Add this line
+    ax.set_xlabel(xlabel, fontsize=14)
     save_and_close_figure(fig, output_file)
 
 
 def load_data(filepath):
-    """Load CSV data and handle error cases"""
+    """
+    Load CSV data and handle error cases gracefully
+
+    Args:
+        filepath: Path to the CSV file to load
+
+    Returns:
+        Pandas DataFrame containing the data, or None if loading fails
+    """
     try:
         data = pd.read_csv(filepath, delimiter=',')
         print(f"  Loaded data from {filepath} ({len(data)} rows)")
@@ -79,14 +114,22 @@ def load_data(filepath):
 
 
 def process_nru_rs_vs_gap_mode_comparison():
+    """
+    Compare performance metrics between NR-U Reserved Signal (RS) mode and NR-U Gap-based mode
+
+    This function:
+    1. Loads data for both NR-U modes
+    2. Calculates performance metrics (channel occupancy, efficiency, collision probability)
+    3. Generates comparison plots showing the differences between modes
+    """
     print("\n=== Processing NR-U RS vs NR-U GAP Comparison ===\n")
-    # set_viridis_color_palette(0.0, 1.0, 7)
     set_distinct_color_palette()
 
     print("Loading NR-U RS and GAP mode data...")
     rs_data = load_data('output/simulation_results/nru-only_rs-mode_raw-data.csv')
     gap_data = load_data('output/simulation_results/nru-only_gap-mode_raw-data.csv')
 
+    # Exit function if data loading failed
     if rs_data is None or gap_data is None:
         return
 
@@ -95,6 +138,7 @@ def process_nru_rs_vs_gap_mode_comparison():
     data_by_metric = {}
     print("Calculating metrics for comparison...")
 
+    # Calculate mean values for each metric, grouped by node count
     for metric in metrics:
         rs_metric = rs_data.groupby(['nru_node_count'])[f'nru_{metric}'].mean()
         gap_metric = gap_data.groupby(['nru_node_count'])[f'nru_{metric}'].mean()
@@ -125,24 +169,35 @@ def process_nru_rs_vs_gap_mode_comparison():
         print(f"  Processing {metric} comparison...")
         config = plot_configs[metric]
         plot_metrics(
-            [rs_data, gap_data],
-            ["o", "s"],
-            ["-", "--"],
-            ['NR-U Reservation Signal Mode', 'NR-U Gap-Based Mode'],
-            config['ylim'],
-            'Number of NR-U Nodes',
-            config['ylabel'],
-            config['output']
+            [rs_data, gap_data],  # Data series to plot
+            ["o", "s"],  # Markers for each series
+            ["-", "--"],  # Line styles
+            ['NR-U Reservation Signal Mode', 'NR-U Gap-Based Mode'],  # Legend labels
+            config['ylim'],  # Y-axis limits
+            'Number of NR-U Nodes',  # X-axis label
+            config['ylabel'],  # Y-axis label
+            config['output']  # Output file path
         )
 
+
 def compare_nru_rs_gap_wifi_performance():
+    """
+    Compare performance metrics among NR-U RS mode, NR-U Gap mode, and Wi-Fi
+
+    This function:
+    1. Loads data for all three technologies
+    2. Combines multiple Wi-Fi data files if present
+    3. Calculates performance metrics for each technology
+    4. Generates comparison plots showing differences across all three
+    """
     print("\n=== Processing NR-U RS vs NR-U GAP vs Wi-Fi Comparison ===\n")
-    # set_viridis_color_palette(0.0, 1.0, 7)
     set_distinct_color_palette()
 
     print("Loading Wi-Fi, NR-U RS and GAP mode data...")
     rs_data = load_data('output/simulation_results/nru-only_rs-mode_raw-data.csv')
     gap_data = load_data('output/simulation_results/nru-only_gap-mode_raw-data.csv')
+
+    # Use glob to find Wi-Fi data files and combine them if multiple exist
     wifi_data = glob.glob('output/simulation_results/wifi-only_nodes-*-*_raw-data.csv')
 
     if not wifi_data:
@@ -167,12 +222,13 @@ def compare_nru_rs_gap_wifi_performance():
     if rs_data is None or gap_data is None or wifi_data is None:
         return
 
-    # Group data by nru_node_count and calculate means for different metrics
+    # Group data by node count and calculate means for different metrics
     metrics = ['channel_occupancy', 'channel_efficiency', 'collision_probability']
     data_by_metric = {}
     print("Calculating metrics for comparison...")
 
     for metric in metrics:
+        # Calculate metrics for each technology
         rs_metric = rs_data.groupby(['nru_node_count'])[f'nru_{metric}'].mean()
         gap_metric = gap_data.groupby(['nru_node_count'])[f'nru_{metric}'].mean()
         wifi_metric = wifi_data.groupby(['wifi_node_count'])[f'wifi_{metric}'].mean()
@@ -204,17 +260,28 @@ def compare_nru_rs_gap_wifi_performance():
         config = plot_configs[metric]
         plot_metrics(
             [rs_data, gap_data, wifi_data],  # Include wifi_data in the data list
-            ["^", "D", "v"],  # Add a marker for wifi
-            ["-", "-", "--"],  # Add a linestyle for wifi
-            ['NR-U (RS mode)', 'NR-U (Gap mode)', 'Wi-Fi'],  # Update legend labels
+            ["^", "D", "v"],  # Markers for each technology
+            ["-", "-", "--"],  # Line styles
+            ['NR-U (RS mode)', 'NR-U (Gap mode)', 'Wi-Fi'],  # Legend labels
             config['ylim'],
             'Number of Wi-Fi/NR-U Nodes',
             config['ylabel'],
             config['output']
         )
 
+
 def process_coexistence_data(data_file, prefix):
-    """Process coexistence data for both NR-U and WiFi"""
+    """
+    Process coexistence data for both NR-U and WiFi from a single file
+
+    Args:
+        data_file: Path to the CSV file containing coexistence data
+        prefix: String prefix for logging purposes (e.g., 'rs', 'gap')
+
+    Returns:
+        Dictionary containing calculated metrics for both NR-U and Wi-Fi,
+        or None if data loading fails
+    """
     data = load_data(data_file)
     if data is None:
         return None
@@ -224,16 +291,25 @@ def process_coexistence_data(data_file, prefix):
     print(f"  Calculating metrics for {prefix} mode...")
 
     for metric in metrics:
-        # NR-U metrics
+        # NR-U metrics grouped by NR-U node count
         results[f'nru_{metric}'] = data.groupby(['nru_node_count'])[f'nru_{metric}'].mean()
-        # WiFi metrics
+        # WiFi metrics grouped by WiFi node count
         results[f'wifi_{metric}'] = data.groupby(['wifi_node_count'])[f'wifi_{metric}'].mean()
 
     return results
 
+
 def process_coexistence_rs_vs_gap_mode():
+    """
+    Compare coexistence performance between NR-U Reserved Signal mode and NR-U Gap mode
+    when sharing spectrum with Wi-Fi
+
+    This function:
+    1. Loads coexistence data for both NR-U modes
+    2. Processes performance metrics for both NR-U and Wi-Fi in each scenario
+    3. Generates comparison plots showing how each mode affects both technologies
+    """
     print("\n=== Processing NR-U RS vs GAP Mode Coexistence Comparison ===\n")
-    # set_viridis_color_palette(0.0, 1.0, 8)
     set_distinct_color_palette()
 
     print("Loading RS and GAP mode coexistence data...")
@@ -267,26 +343,42 @@ def process_coexistence_rs_vs_gap_mode():
     for metric, config in plot_configs.items():
         print(f"  Processing {metric} comparison...")
         plot_metrics(
+            # Data series: NR-U RS, Wi-Fi with RS, NR-U Gap, Wi-Fi with Gap
             [rs_results[f'nru_{metric}'], rs_results[f'wifi_{metric}'],
              gap_results[f'nru_{metric}'], gap_results[f'wifi_{metric}']],
-            ["^", "v", "o", "s"],
-            [":", "--", "-", "-."],
-            ['NR-U (RS mode coexistence)', 'Wi-Fi (with RS mode NR-U)', 'NR-U (Gap mode coexistence)', 'Wi-Fi (with GAP mode NR-U)'],
+            ["^", "v", "o", "s"],  # Markers
+            [":", "--", "-", "-."],  # Line styles
+            ['NR-U (RS mode coexistence)', 'Wi-Fi (with RS mode NR-U)',
+             'NR-U (Gap mode coexistence)', 'Wi-Fi (with GAP mode NR-U)'],
             config['ylim'],
             'Number of Wi-Fi/NR-U Nodes',
             config['ylabel'],
             config['output']
         )
 
+
 def process_coexistence_gap_timing_comparison():
+    """
+    Compare performance between synchronized and desynchronized Gap mode NR-U
+    when coexisting with Wi-Fi
+
+    This function:
+    1. Loads coexistence data for synchronized and desynchronized Gap mode
+    2. Processes performance metrics for both NR-U and Wi-Fi in each scenario
+    3. Generates plots showing the impact of timing synchronization
+    """
     print("\n=== Processing Coexistence GAP Sync vs Desync Comparison ===\n")
-    # set_viridis_color_palette(0.0, 1.0, 6)
     set_distinct_color_palette()
 
     print("Loading coexistence sync and desync data...")
-    desync_results = process_coexistence_data('output/simulation_results/coex_gap-mode_desync-0-1000_raw-data.csv',
-                                              'desync')
-    sync_results = process_coexistence_data('output/simulation_results/coex_gap-mode_raw-data.csv', 'sync')
+    # Desynchronized Gap mode (frame timing offset between 0-1000μs)
+    desync_results = process_coexistence_data(
+        'output/simulation_results/coex_gap-mode_desync-0-1000_raw-data.csv',
+        'desync')
+    # Standard Gap mode (synchronized frame timing)
+    sync_results = process_coexistence_data(
+        'output/simulation_results/coex_gap-mode_raw-data.csv',
+        'sync')
 
     if desync_results is None or sync_results is None:
         return
@@ -294,7 +386,7 @@ def process_coexistence_gap_timing_comparison():
     # Define plot configurations
     plot_configs = {
         'channel_occupancy': {
-            'ylim': (0.001, 1),
+            'ylim': (0.001, 1),  # Log scale compatible lower bound
             'ylabel': 'Channel Occupancy',
             'output': 'output/metrics_visualizations/comparative_analysis/synchronization_studies/gap_timing_comparison_channel_occupancy.png'
         },
@@ -315,10 +407,11 @@ def process_coexistence_gap_timing_comparison():
     for metric, config in plot_configs.items():
         print(f"  Processing {metric} comparison...")
         plot_metrics(
+            # Data series: NR-U desync, Wi-Fi with desync, NR-U sync, Wi-Fi with sync
             [desync_results[f'nru_{metric}'], desync_results[f'wifi_{metric}'],
              sync_results[f'nru_{metric}'], sync_results[f'wifi_{metric}']],
-            ["o", "v", "D", "^"],
-            ["-", "--", "-.", "-"],
+            ["o", "v", "D", "^"],  # Markers
+            ["-", "--", "-.", "-"],  # Line styles
             ['NR-U (desynchronized)', 'Wi-Fi (with desynchronized NR-U)',
              'NR-U (synchronized frames)', 'Wi-Fi (with synchronized NR-U)'],
             config['ylim'],
@@ -327,17 +420,28 @@ def process_coexistence_gap_timing_comparison():
             config['output']
         )
 
+
 def compare_coexistence_gap_desync_with_without_backoff():
+    """
+    Compare performance of desynchronized Gap mode NR-U with and without backoff
+    mechanism when coexisting with Wi-Fi
+
+    This function:
+    1. Finds and loads data files for desync mode with and without backoff
+    2. Calculates performance metrics for both scenarios
+    3. Generates comparison plots showing the impact of disabling backoff
+    """
     print("\n=== Processing Coexistence Gap Desync vs Backoff Comparison ===\n")
     set_distinct_color_palette()
 
     print("Loading coexistence desync and backoff data...")
-    # Use glob to find Wi-Fi data files and combine them if multiple exist
+    # Use glob to find and filter relevant data files
     desync_results = glob.glob('output/simulation_results/coex_gap-mode_desync-*-*_raw-data.csv')
     backoff_results = glob.glob('output/simulation_results/coex_gap-mode_desync-*-*_disabled-backoff_raw-data.csv')
 
-    desync_results = [file for file in desync_results if not "disabled-backoff" in file]
-    backoff_results = [file for file in backoff_results if not "adjusted" in file]
+    # Filter out files that don't match our criteria
+    desync_results = [file for file in desync_results if not "disabled-backoff" in file.lower()]
+    backoff_results = [file for file in backoff_results if not "adjusted" in file.lower()]
 
     if not desync_results:
         print("  No data files found with pattern 'coex_gap-mode_desync-*-*_raw-data.csv'")
@@ -347,14 +451,14 @@ def compare_coexistence_gap_desync_with_without_backoff():
         print("  No data files found with pattern 'coex_gap-mode_desync-*-*_disabled-backoff_raw-data.csv'")
         return
 
-    # Load and combine all desync data files
+    # Load and combine all desync data files (standard backoff)
     desync_results_frames = []
     for file in desync_results:
         data = load_data(file)
         if data is not None:
             desync_results_frames.append(data)
 
-    # Load and combine all backoff data files
+    # Load and combine all disabled backoff data files
     backoff_results_frames = []
     for file in backoff_results:
         data = load_data(file)
@@ -379,15 +483,12 @@ def compare_coexistence_gap_desync_with_without_backoff():
     print("Calculating metrics for comparison...")
 
     # Process metrics for both desync and backoff data
-    desync_metrics = {}
-    backoff_metrics = {}
-
     for metric in metrics:
-        # Calculate metrics for desync data
+        # Calculate metrics for desync data (with standard backoff)
         desync_nru_metric = desync_data.groupby(['nru_node_count'])[f'nru_{metric}'].mean()
         desync_wifi_metric = desync_data.groupby(['wifi_node_count'])[f'wifi_{metric}'].mean()
 
-        # Calculate metrics for backoff data
+        # Calculate metrics for disabled backoff data
         backoff_nru_metric = backoff_data.groupby(['nru_node_count'])[f'nru_{metric}'].mean()
         backoff_wifi_metric = backoff_data.groupby(['wifi_node_count'])[f'wifi_{metric}'].mean()
 
@@ -397,7 +498,7 @@ def compare_coexistence_gap_desync_with_without_backoff():
     # Define plot configurations
     plot_configs = {
         'channel_occupancy': {
-            'ylim': (0.001, 1),
+            'ylim': (0.001, 1),  # Log scale compatible lower bound
             'ylabel': 'Channel Occupancy',
             'output': 'output/metrics_visualizations/comparative_analysis/disabling_back_off/coexistence_gap_desync_backoff_comparison_cot.png'
         },
@@ -419,9 +520,10 @@ def compare_coexistence_gap_desync_with_without_backoff():
         print(f"  Processing {metric} comparison...")
         config = plot_configs[metric]
         plot_metrics(
+            # Data series for both configurations and technologies
             [desync_nru, desync_wifi, backoff_nru, backoff_wifi],
-            ["o", "v", "D", "^"],
-            ["-", "--", "-.", "-"],
+            ["o", "v", "D", "^"],  # Markers
+            ["-", "--", "-.", "-"],  # Line styles
             ['NR-U (desync, backoff)',
              'Wi-Fi (with NR-U: desync, backoff)',
              'NR-U (desync, no backoff)',
@@ -432,14 +534,26 @@ def compare_coexistence_gap_desync_with_without_backoff():
             config['output']
         )
 
+
 def process_coexistence_nru_gap_desync_adjustcw():
+    """
+    Compare performance of desynchronized Gap mode NR-U with disabled backoff
+    versus the same configuration with adjusted contention window (CW)
+
+    This function:
+    1. Loads data for both configurations
+    2. Processes performance metrics for both scenarios
+    3. Generates plots showing the impact of CW adjustment on fairness and performance
+    """
     print("\n=== Processing Coexistence NR-U GAP Desync Adjust CW Comparison ===\n")
-    # set_viridis_color_palette(0.0, 1.0, 6)
     set_distinct_color_palette()
 
     print("Loading disabled backoff and adjusted CW data...")
+    # Standard disabled backoff configuration
     disabled_backoff = process_coexistence_data(
-        'output/simulation_results/coex_gap-mode_desync-0-1000_disabled-backoff_raw-data.csv', 'disabled')
+        'output/simulation_results/coex_gap-mode_desync-0-1000_disabled-backoff_raw-data.csv',
+        'disabled')
+    # Disabled backoff with varied (adjusted) contention window
     adjusted_cw = process_coexistence_data(
         'output/simulation_results/coex_gap-mode_desync-0-1000_disabled-backoff_adjusted-cw-Varied_raw-data.csv',
         'adjusted')
@@ -447,6 +561,7 @@ def process_coexistence_nru_gap_desync_adjustcw():
     if disabled_backoff is None or adjusted_cw is None:
         return
 
+    # Create descriptive labels for the legend
     labels = [
         'NR-U (desync, no backof)',
         'Wi-Fi (with NR-U: desync, no backoff)',
@@ -457,7 +572,7 @@ def process_coexistence_nru_gap_desync_adjustcw():
     # Define plot configurations
     plot_configs = {
         'channel_occupancy': {
-            'ylim': (0.001, 1),
+            'ylim': (0.001, 1),  # Log scale compatible lower bound
             'ylabel': 'Channel Occupancy',
             'output': 'output/metrics_visualizations/comparative_analysis/contention_window_adjustments/coexistence_gap_desync_adjustcw_cot.png'
         },
@@ -478,22 +593,37 @@ def process_coexistence_nru_gap_desync_adjustcw():
     for metric, config in plot_configs.items():
         print(f"  Processing {metric} comparison...")
         plot_metrics(
+            # Data series for both configurations
             [disabled_backoff[f'nru_{metric}'], disabled_backoff[f'wifi_{metric}'],
              adjusted_cw[f'nru_{metric}'], adjusted_cw[f'wifi_{metric}']],
-            ["o", "D", "s", "h"], ["-", "--", "-", "-."],
-            labels, config['ylim'], 'Number of Wi-Fi/NR-U Nodes',
-            config['ylabel'], config['output']
+            ["o", "D", "s", "h"],  # Markers
+            ["-", "--", "-", "-."],  # Line styles
+            labels,
+            config['ylim'],
+            'Number of Wi-Fi/NR-U Nodes',
+            config['ylabel'],
+            config['output']
         )
 
 
 def process_coexistence_rs_vs_coexistence_modified():
+    """
+    Compare standard RS mode coexistence against optimized Gap mode
+    (with desync, disabled backoff, and adjusted CW)
+
+    This function:
+    1. Loads data for standard RS mode and optimized Gap mode
+    2. Processes metrics for both configurations
+    3. Generates plots to evaluate which provides better overall performance
+    """
     print("\n=== Processing Coexistence RS vs Desync Adjust CW Comparison ===\n")
     set_distinct_color_palette()
 
     print("Loading coexistence rs and coexistence modified data...")
     # Load data for standard RS mode
     coex_rs = process_coexistence_data(
-        'output/simulation_results/coex_rs-mode_raw-data.csv', 'rs')
+        'output/simulation_results/coex_rs-mode_raw-data.csv',
+        'rs')
 
     # Load data for modified GAP mode (with desync, disabled backoff, and adjusted CW)
     coex_mod = process_coexistence_data(
@@ -504,7 +634,7 @@ def process_coexistence_rs_vs_coexistence_modified():
         print("  Failed to load one or both of the required data files")
         return
 
-    # Create more descriptive labels for the legend
+    # Create descriptive labels for the legend
     labels = [
         'NR-U (standard RS mode)',
         'Wi-Fi (with RS mode NR-U)',
@@ -512,10 +642,10 @@ def process_coexistence_rs_vs_coexistence_modified():
         'Wi-Fi (with modified Gap mode NR-U)'
     ]
 
-    # Define plot configurations with appropriate axis limits and output paths
+    # Define plot configurations
     plot_configs = {
         'channel_occupancy': {
-            'ylim': (0.001, 1),
+            'ylim': (0.001, 1),  # Log scale compatible lower bound
             'ylabel': 'Channel Occupancy',
             'output': 'output/metrics_visualizations/comparative_analysis/coexistence_modes/coexistence_rs_vs_modified_gap_cot.png'
         },
@@ -556,14 +686,6 @@ def list_output_files():
     output_files = glob.glob('output/metrics_visualizations/comparative_analysis/**/*.png', recursive=True)
 
     print(f"Total number of generated plots: {len(output_files)}")
-
-    # Group files by directory
-    # output_dirs = sorted(set([os.path.dirname(f) for f in output_files]))
-    #     for dir in output_dirs:
-    #         files_in_dir = [os.path.basename(f) for f in output_files if os.path.dirname(f) == dir]
-    #         print(f"\n  {dir} ({len(files_in_dir)} files):")
-    #         for file in sorted(files_in_dir):
-    #             print(f"    - {file}")
 
 if __name__ == "__main__":
     print("\n=== Starting Comparison Metrics Visualization Process ===\n")
