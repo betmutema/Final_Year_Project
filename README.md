@@ -70,4 +70,4 @@ python visualize_network_metrics.py
 |-----------------------|----------------------------------------------|------------------------------------------------|
 | **Channel Occupancy** | Fraction of time the channel is occupied     | ![cot_plot](output/metrics_visualizations/individual_systems/nru/nru_gap_cot.png) |
 | **Collision Probability** | Likelihood of overlapping transmissions | ![pcol_plot](output/metrics_visualizations/coexistence_strategies/coex_gap/coexistence_gap_pcol.png) |
-| **Airtime Fairness**  | Impact of CW adjustments on fairness         | ![cw_impact](output/metrics_visualizations/airtime_fairness/airtime_fairness_32_512_48_2_2.png) |
+| **Airtime Fairness**  | Impact of CW adjustments on fairness         | ![cw_impact](output/metric_visualizations/airtime_fairness/airtime_fairness_32_512_48_1_1.png) |
