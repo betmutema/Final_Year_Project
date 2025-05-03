@@ -8,7 +8,6 @@ import re
 import warnings
 from cycler import cycler
 
-
 def extract_parameters(filename):
     """Extract parameters from filename like wifi-only_nodes-1-10_raw-data.csv"""
     match = re.search(r"wifi-only_nodes-(\d+-\d+)", filename)
@@ -24,7 +23,6 @@ def set_distinct_color_palette():
         '#0072B2',  # blue
         '#D55E00',  # vermillion/orange
         '#009E73',  # green
-        # '#CC79A7',  # pink
         '#E69F00',  # orange/amber
         '#56B4E9',  # sky blue
         '#F0E442',  # yellow
@@ -49,23 +47,24 @@ def create_plot(x_data, y_data, title, xlabel, ylabel, output_path, ylim=(0, 1),
     # plt.show()
     plt.close(fig)
 
-
 def create_dual_plot(x_data1, y_data1, x_data2, y_data2, titles, xlabel, ylabel, output_path, ylim=(0, 1)):
     """Create and save a plot with two data series"""
+
+    # Create directory if it doesn't exist
+    output_dir = os.path.dirname(output_path)
+    os.makedirs(output_dir, exist_ok=True)  # <-- Add this line
+
     fig, ax = plt.subplots()
     y_data1.plot(marker="o", legend=True, ylim=ylim, linestyle='-')
     y_data2.plot(marker="D", legend=True, ylim=ylim, linestyle='-.')
     ax.legend(titles)
     ax.set_xlabel(xlabel, fontsize=14)
     ax.set_ylabel(ylabel, fontsize=14)
-    # ax.set_title(titles, fontsize=14)
-
     plt.tight_layout()
     plt.savefig(output_path)
     print(f"  Saved plot: {output_path}")
     # plt.show() # disp
     plt.close(fig)
-
 
 def plot_metrics(data, node_count_col, metric_cols, titles, output_dir, filename_prefix, ylims=None,
                  technology_type=None):
@@ -101,7 +100,6 @@ def plot_metrics(data, node_count_col, metric_cols, titles, output_dir, filename
             output_path, ylim=ylim
         )
 
-
 def plot_dual_metrics(data, node_count_cols, metric_cols, titles, output_dir, filename_prefix, ylims=None):
     """Generic function to plot dual metrics data"""
     if ylims is None:
@@ -132,7 +130,6 @@ def plot_dual_metrics(data, node_count_cols, metric_cols, titles, output_dir, fi
                 [titles[i], titles[i + 1]], node_label,
                 labels[i // 2], output_path, ylim=ylims[i // 2]
             )
-
 
 def plot_wifi_metrics():
     # Find WiFi CSV file
@@ -226,7 +223,6 @@ def plot_coexistence_metrics(mode):
     except Exception as e:
         warnings.warn(f"Error processing coexistence {mode} metrics: {str(e)}")
 
-
 def parse_desync_filename(filename):
     """Parse parameters from desync filenames"""
     result = {}
@@ -245,7 +241,6 @@ def parse_desync_filename(filename):
     result['cw_value'] = cw_match.group(1) if cw_match else None
 
     return result
-
 
 def get_file_category(filename):
     """Categorize files based on their parameters"""
@@ -332,12 +327,6 @@ def process_desync_files(category='basic_desync'):
     # output_dir = 'output/metrics_visualizations/coexistence_strategies/coex_gap_desync'
     ylims = [(0.001, 1), (0, 1), (0, 1)]
 
-    # Show what output files will be generated
-    # print(f"\nOutput files will be generated in {output_dir}:")
-    # metrics = ['cot', 'eff', 'pcol']
-    # for metric in metrics:
-    #     print(f"  {output_prefix}_{metric}.png")
-
     plot_dual_metrics(
         coex_metrics, node_count_cols, metric_cols, titles,
         output_dir, output_prefix, ylims
@@ -347,7 +336,7 @@ def process_desync_files(category='basic_desync'):
 def process_specific_cw_value(cw_value):
     """Process files for a specific CW value"""
     # Find files with this specific CW value
-    pattern = f'output/simulation_results/coex_gap-mode_desync-*_disabled-backoff_adjusted-cw-{cw_value}_raw-data.csv'
+    pattern = f'output/simulation_results/coex_gap-mode_desync-*-*_disabled-backoff_adjusted-cw-{cw_value}_raw-data.csv'
     files = glob.glob(pattern)
 
     if not files:
@@ -378,15 +367,12 @@ def process_specific_cw_value(cw_value):
         ' NR-U', ' Wi-Fi'
     ]
 
-    output_dir = f'output/metrics_visualizations/coexistence_strategies/coexistence_gap_desync_disabled_backoff_adjust_cw_{cw_value}'
+    # output_dir = f'output/metrics_visualizations/coexistence_strategies/coexistence_gap_desync_disabled_backoff_adjust_cw_{cw_value}'
+    output_dir = f'output/metrics_visualizations/coexistence_strategies/cw_{cw_value}'
     output_prefix = f"coexistence_gap_desync_disabled_backoff_adjust_cw_{cw_value}"
     ylims = [(0.001, 1), (0.001, 1), (0, 1)]
 
-    # Show what output files will be generated
-    # print(f"\nOutput files will be generated in {output_dir}:")
-    # metrics = ['cot', 'eff', 'pcol']
-    # for metric in metrics:
-    #     print(f"  {output_prefix}_{metric}.png")
+    os.makedirs(output_dir, exist_ok=True)  # <-- Add this line
 
     plot_dual_metrics(
         coex_metrics, node_count_cols, metric_cols, titles,
@@ -415,8 +401,6 @@ def process_all_cw_files():
 
 
 def main():
-    # Set color palette
-    # set_viridis_color_palette()
     set_distinct_color_palette()
 
     print("\n=== Starting Metrics Visualization Process ===\n")
@@ -443,7 +427,7 @@ def main():
     # Process desync files by category
     process_desync_files('basic_desync')  # Basic desync files
     process_desync_files('disabled_backoff')  # Files with disabled backoff
-    process_desync_files('varied_cw')  # Files with varied CW
+    process_desync_files('Varied_cw')  # Files with varied CW
 
     print("\n=== Processing CW Files ===")
     # Process files with specific CW values
@@ -459,17 +443,8 @@ def main():
                 all_output_files.append(os.path.join(root, file))
 
     print(f"\nTotal number of generated plots: {len(all_output_files)}")
-    # print("\nOutput directories:")
-    # output_dirs = sorted(set([os.path.dirname(f) for f in all_output_files]))
-
-    # for dir in output_dirs:
-    # files_in_dir = [os.path.basename(f) for f in all_output_files if os.path.dirname(f) == dir]
-    # print(f"\n  {dir} ({len(files_in_dir)} files):")
-    # for file in sorted(files_in_dir):
-    # print(f"    - {file}")
 
     print("\n=== Metrics Visualization Complete ===\n")
-
 
 if __name__ == "__main__":
     main()
