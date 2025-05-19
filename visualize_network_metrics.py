@@ -8,10 +8,12 @@ import re
 import warnings
 from cycler import cycler
 
+
 def extract_parameters(filename):
     """Extract parameters from filename like wifi-only_nodes-1-10_raw-data.csv"""
     match = re.search(r"wifi-only_nodes-(\d+-\d+)", filename)
     return match.group(1) if match else "unknown"
+
 
 def set_distinct_color_palette():
     """
@@ -33,6 +35,7 @@ def set_distinct_color_palette():
     # Return the colors in case needed elsewhere
     return distinct_colors
 
+
 def create_plot(x_data, y_data, title, xlabel, ylabel, output_path, ylim=(0, 1), linestyle="-"):
     """Create and save a plot with given data and parameters"""
     fig, ax = plt.subplots()
@@ -46,6 +49,7 @@ def create_plot(x_data, y_data, title, xlabel, ylabel, output_path, ylim=(0, 1),
     print(f"  Saved plot: {output_path}")
     # plt.show()
     plt.close(fig)
+
 
 def create_dual_plot(x_data1, y_data1, x_data2, y_data2, titles, xlabel, ylabel, output_path, ylim=(0, 1)):
     """Create and save a plot with two data series"""
@@ -65,6 +69,7 @@ def create_dual_plot(x_data1, y_data1, x_data2, y_data2, titles, xlabel, ylabel,
     print(f"  Saved plot: {output_path}")
     # plt.show() # disp
     plt.close(fig)
+
 
 def plot_metrics(data, node_count_col, metric_cols, titles, output_dir, filename_prefix, ylims=None,
                  technology_type=None):
@@ -100,6 +105,7 @@ def plot_metrics(data, node_count_col, metric_cols, titles, output_dir, filename
             output_path, ylim=ylim
         )
 
+
 def plot_dual_metrics(data, node_count_cols, metric_cols, titles, output_dir, filename_prefix, ylims=None):
     """Generic function to plot dual metrics data"""
     if ylims is None:
@@ -130,6 +136,7 @@ def plot_dual_metrics(data, node_count_cols, metric_cols, titles, output_dir, fi
                 [titles[i], titles[i + 1]], node_label,
                 labels[i // 2], output_path, ylim=ylims[i // 2]
             )
+
 
 def plot_wifi_metrics():
     # Find WiFi CSV file
@@ -223,6 +230,7 @@ def plot_coexistence_metrics(mode):
     except Exception as e:
         warnings.warn(f"Error processing coexistence {mode} metrics: {str(e)}")
 
+
 def parse_desync_filename(filename):
     """Parse parameters from desync filenames"""
     result = {}
@@ -236,31 +244,41 @@ def parse_desync_filename(filename):
     # Check if backoff is disabled
     result['disabled_backoff'] = 'disabled-backoff' in filename
 
+    # Debug
+    # print(f"{result['disabled_backoff']} = 'disabled-backoff' {result['disabled_backoff']}")
+
     # Extract CW value if present
     cw_match = re.search(r"adjusted-cw-([^_]+)", filename)
     result['cw_value'] = cw_match.group(1) if cw_match else None
 
+    # Check for dynamic-cw
+    result['dynamic_cw'] = 'dynamic-cw' in filename
+
+    # print(f"result: {result}") Debug
+
     return result
+
 
 def get_file_category(filename):
     """Categorize files based on their parameters"""
     params = parse_desync_filename(filename)
 
     # Basic desync file with no additional parameters
-    if not params['disabled_backoff'] and not params['cw_value']:
+    if not params['disabled_backoff'] and not params['cw_value'] and not params['dynamic_cw']:
         return 'basic_desync'
 
     # Disabled backoff but no CW adjustment
-    elif params['disabled_backoff'] and not params['cw_value']:
+    elif params['disabled_backoff'] and not params['cw_value'] and not params['dynamic_cw']:
         return 'disabled_backoff'
 
     # Disabled backoff with specific CW value
-    elif params['disabled_backoff'] and params['cw_value'] != 'Varied':
+    elif params['disabled_backoff'] and params['cw_value'] and params['cw_value'] != 'Varied':
         return f"cw_{params['cw_value']}"
 
-    # Varied CW value
-    elif params['disabled_backoff'] and params['cw_value'] == 'Varied':
-        return 'varied_cw'
+    # Dynamic CW value (replacing Varied)
+    elif params['disabled_backoff'] and (
+            params['dynamic_cw'] or (params['cw_value'] and params['cw_value'] == 'Varied')):
+        return 'dynamic_cw'
 
     # Fallback for unexpected cases
     else:
@@ -271,6 +289,12 @@ def process_desync_files(category='basic_desync'):
     """Process desync files by category and create appropriate plots"""
     # Get all desync files
     all_files = glob.glob('output/simulation_results/coex_gap-mode_desync-*_raw-data.csv')
+
+    # print(f"ALL Files:")
+    # # Loop Five Times
+    # for i in all_files:
+    # #print(f"Loop iteration {i}: Found")
+    # print(f"Files: {i}")
 
     # Filter files by category
     if category == 'basic_desync':
@@ -287,12 +311,26 @@ def process_desync_files(category='basic_desync'):
         output_dir = 'output/metrics_visualizations/coexistence_strategies/coexistence_gap_desync_disabled_backoff'
         print("\n*** Disabled Backoff Files ***\n")
 
-    elif category == 'varied_cw':
-        # Files with varied CW
-        files = [f for f in all_files if get_file_category(f) == 'varied_cw']
-        output_prefix = 'coexistence_gap_desync_disabled_backoff_adjust_cw_Varied'
-        output_dir = 'output/metrics_visualizations/coexistence_strategies/coexistence_gap_desync_disabled_backoff_adjust_cw_Varied'
-        print("\n*** Varied CW Files ***\n")
+    elif category == 'dynamic_cw':
+        # Files with dynamic CW (replacing varied CW)
+        files = [f for f in all_files if get_file_category(f) == 'dynamic_cw']
+
+        # print(f"\nFiles Catergory::")
+        # # Loop Five Times
+        # for i in all_files:
+        # # print(f"Loop iteration {i}: Found")
+        # print(f"Files: {i}  Catergory = {get_file_category(i)}")
+
+        output_prefix = 'coexistence_gap_desync_disabled_backoff_dynamic_cw'
+        output_dir = 'output/metrics_visualizations/coexistence_strategies/dynamic_cw'
+        print("\n*** Dynamic CW Files ***\n")
+
+        # # Debug
+        # print(f"\nDynamic Files:")
+        # # Loop Five Times
+        # for i in files:
+        # # print(f"Loop iteration {i}: Found")
+        # print(f"Files: {i}")
 
     else:
         return  # Unknown category
@@ -427,7 +465,7 @@ def main():
     # Process desync files by category
     process_desync_files('basic_desync')  # Basic desync files
     process_desync_files('disabled_backoff')  # Files with disabled backoff
-    process_desync_files('Varied_cw')  # Files with varied CW
+    process_desync_files('dynamic_cw')  # Files with dynamic CW (replacing varied CW)
 
     print("\n=== Processing CW Files ===")
     # Process files with specific CW values
@@ -445,6 +483,7 @@ def main():
     print(f"\nTotal number of generated plots: {len(all_output_files)}")
 
     print("\n=== Metrics Visualization Complete ===\n")
+
 
 if __name__ == "__main__":
     main()
