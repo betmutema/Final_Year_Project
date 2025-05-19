@@ -2,7 +2,218 @@ import shutil
 import click
 import csv
 import os
+import pandas as pd
+import numpy as np
+from scipy import interpolate
+from pathlib import Path
 from coexistence_simpy.coexistence_simulator import *
+
+
+def run_cw_sweep(
+        cw_start,
+        cw_end,
+        cw_step,
+        ap_number,
+        gnb_number,
+        runs=10,
+        simulation_time=100.0,
+        min_nru_cw=0,
+        max_nru_cw=0,
+        synchronization_slot_duration=1000,
+        min_sync_slot_desync=0,
+        max_sync_slot_desync=1000,
+        nru_mode="gap"
+):
+    """
+        Performs a parameter sweep over contention window sizes to evaluate
+        coexistence performance between Wi-Fi and NR-U networks.
+        This function is adapted from contention_window_sweep.py to be called directly
+        when we need to generate data for optimal CW calculation.
+    """
+    print(f"Starting contention window sweep for {ap_number} WiFi and {gnb_number} NRU nodes...")
+    print(f"CW range: {cw_start} to {cw_end} with step {cw_step}")
+
+    # Define output file path
+    output_file = f"output/simulation_results/airtime_fairness_{cw_start}_{cw_end}_{cw_step}_{ap_number}_{gnb_number}.csv"
+    # Create output directory if it doesn't exist
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+
+    # Initialize the output CSV file with header row
+    with open(output_file, mode='w', newline='') as out_file:
+        writer = csv.writer(out_file)
+        writer.writerow([
+            "CW", "simulation_seed", "wifi_node_count", "nru_node_count",
+            "wifi_channel_occupancy", "wifi_channel_efficiency", "wifi_collision_probability",
+            "nru_channel_occupancy", "nru_channel_efficiency", "nru_collision_probability",
+            "total_channel_occupancy", "total_network_efficiency", "jain's_fairness_index", "joint_airtime_fairness"
+        ])
+
+    # Loop through the contention window range with specified step size
+    for cw in range(cw_start, cw_end + 1, cw_step):
+        print(
+            f"Running simulations for CW = {cw} ({(cw - cw_start) // (cw_step) + 1}/{(cw_end - cw_start) // (cw_step) + 1})")
+        # For each CW value, run multiple simulations with different random seeds
+        for seed in range(runs):
+            # Use a temporary file for the simulation output
+            temp_output_file = "output/simulation_results/temp_results.csv"
+
+            # Run a single simulation with the current parameters
+            simulate_coexistence(
+                ap_number,  # Number of Wi-Fi access points
+                gnb_number,  # Number of NR-U base stations
+                seed,  # Random seed for reproducibility
+                simulation_time,  # Duration of simulation in seconds
+                WiFiConfig(1472, cw, cw, 7, 7),  # Wi-Fi config with current CW value
+                NRUConfig(
+                    16, 9, synchronization_slot_duration,
+                    max_sync_slot_desync, min_sync_slot_desync,
+                    3, min_nru_cw, max_nru_cw, 6
+                ),  # NR-U configuration
+                {key: {ap_number: 0} for key in range(cw + 1)},  # Backoff counters
+                {f"WiFiStation {i}": 0 for i in range(1, ap_number + 1)},  # Wi-Fi data airtime
+                {f"WiFiStation {i}": 0 for i in range(1, ap_number + 1)},  # Wi-Fi control airtime
+                {f"NRUBaseStation {i}": 0 for i in range(1, gnb_number + 1)},  # NR-U data airtime
+                {f"NRUBaseStation {i}": 0 for i in range(1, gnb_number + 1)},  # NR-U control airtime
+                nru_mode,  # NR-U operational mode
+                temp_output_file  # Temporary output file
+            )
+
+            # Process the simulation results from the temporary file
+            if os.path.exists(temp_output_file):
+                with open(temp_output_file, 'r') as temp_file:
+                    lines = temp_file.readlines()
+                    if lines and len(lines) > 1:  # Make sure there's data
+                        # Extract the last line which contains the final simulation metrics
+                        last_line = lines[-1].strip().split(',')
+                        # Append CW value and metrics to the final output CSV
+                        with open(output_file, mode='a', newline='') as out_file:
+                            writer = csv.writer(out_file)
+                            writer.writerow([cw] + last_line)  # Add CW as first column
+
+                # Remove the temporary file after processing
+                os.remove(temp_output_file)
+
+    print(f"Contention window sweep completed. Results saved to {output_file}")
+    return output_file
+
+
+def find_optimal_cw(num_wifi_nodes, num_nru_nodes):
+    """
+    Calculate the optimal contention window by finding the intersection
+    of WiFi and NRU channel occupancy curves.
+
+    If the required CSV file doesn't exist, it will run a contention window sweep
+    to generate the necessary data.
+
+    Args:
+        num_wifi_nodes: Number of WiFi nodes
+        num_nru_nodes: Number of NRU nodes
+
+    Returns:
+        int: Optimal contention window value
+    """
+    # Parameters for the contention window sweep
+    cw_start = 32
+    cw_end = 512
+    cw_step = 48
+
+    # Construct the CSV filename based on node density
+    csv_filename = f"airtime_fairness_{cw_start}_{cw_end}_{cw_step}_{num_wifi_nodes}_{num_nru_nodes}.csv"
+    csv_path = os.path.join('output', 'simulation_results', csv_filename)
+
+    # Check if the required CSV file exists
+    if not os.path.exists(csv_path):
+        print(f"CSV file {csv_path} not found.")
+
+        # Run the contention window sweep to generate the required data
+        csv_path = run_cw_sweep(
+            cw_start=cw_start,
+            cw_end=cw_end,
+            cw_step=cw_step,
+            ap_number=num_wifi_nodes,
+            gnb_number=num_nru_nodes
+        )
+
+        # Double-check if file was created
+        if not os.path.exists(csv_path):
+            print(f"Failed to create data file. Using default CW value of 63.")
+            return 63
+
+    # Now that we have the data, analyze it to find the optimal CW
+    try:
+        # Load the CSV data
+        df = pd.read_csv(csv_path)
+
+        # Check if the dataframe has the expected columns
+        expected_columns = ['CW', 'wifi_channel_occupancy', 'nru_channel_occupancy']
+        for col in expected_columns:
+            if col not in df.columns:
+                print(f"Error: Required column '{col}' not found in CSV. Using default CW value of 63.")
+                return 63
+
+        # Group by CW and calculate means for each metric
+        grouped = df.groupby('CW').mean().reset_index()
+
+        # Get arrays for intersection calculation
+        cw_values = grouped['CW'].values
+        wifi_occupancy = grouped['wifi_channel_occupancy'].values
+        nru_occupancy = grouped['nru_channel_occupancy'].values
+
+        # Create interpolation functions
+        wifi_interp = interpolate.interp1d(cw_values, wifi_occupancy, kind='cubic')
+        nru_interp = interpolate.interp1d(cw_values, nru_occupancy, kind='cubic')
+
+        # Create a finer grid of CW values for more precise intersection finding
+        fine_cw = np.linspace(min(cw_values), max(cw_values), 1000)
+        fine_wifi = wifi_interp(fine_cw)
+        fine_nru = nru_interp(fine_cw)
+
+        # Find where the difference is closest to zero (intersection point)
+        intersection_idx = np.argmin(np.abs(fine_wifi - fine_nru))
+        intersection_cw = fine_cw[intersection_idx]
+
+        # Calculate all parameters at the intersection point
+        all_metrics = [
+            'wifi_channel_efficiency', 'wifi_collision_probability',
+            'nru_channel_efficiency', 'nru_collision_probability',
+            'total_channel_occupancy', 'total_network_efficiency',
+            'jain\'s_fairness_index', 'joint_airtime_fairness'
+        ]
+
+        params_at_intersection = {
+            'CW': intersection_cw,
+            'wifi_channel_occupancy': fine_wifi[intersection_idx],
+            'nru_channel_occupancy': fine_nru[intersection_idx]
+        }
+
+        # Calculate interpolated values for all metrics at the intersection point
+        for metric in all_metrics:
+            if metric in grouped.columns:
+                metric_interp = interpolate.interp1d(cw_values, grouped[metric].values, kind='cubic')
+                params_at_intersection[metric] = metric_interp(intersection_cw)
+
+        # Save analysis to CSV for reference
+        intersection_row = pd.DataFrame([params_at_intersection])
+        result_df = pd.concat([grouped, intersection_row]).sort_values('CW')
+        analysis_path = os.path.join('output', 'analysis',
+                                     f'intersection_analysis_{num_wifi_nodes}_{num_nru_nodes}.csv')
+
+        # Create analysis directory if it doesn't exist
+        os.makedirs(os.path.dirname(analysis_path), exist_ok=True)
+        result_df.to_csv(analysis_path, index=False)
+
+        # Round to nearest integer and return
+        optimal_cw = round(intersection_cw)
+        print(f"Node density ({num_wifi_nodes}, {num_nru_nodes}): Optimal CW = {optimal_cw}")
+        print(
+            f"At intersection: WiFi occupancy = {fine_wifi[intersection_idx]:.4f}, NRU occupancy = {fine_nru[intersection_idx]:.4f}")
+        return optimal_cw
+
+    except Exception as e:
+        print(f"Error calculating optimal CW for node density ({num_wifi_nodes}, {num_nru_nodes}): {str(e)}")
+        print("Using default CW value of 63.")
+        return 63
+
 
 # This script runs multiple simulations of WiFi and NR-U coexistence, varying the number of nodes
 # and collecting statistics about channel efficiency, fairness, and collision probability.
@@ -12,14 +223,10 @@ from coexistence_simpy.coexistence_simulator import *
 @click.option("--start_node_number", type=int, required=True, help="Starting number of nodes")
 @click.option("--end_node_number", type=int, required=True, help="Ending number of nodes")
 @click.option("--simulation_time", default=100.0, help="Simulation duration (micro s)")
-# @click.option("--min_wifi_cw", default=15, help="Wi-Fi minimum contention window")
 @click.option("--min_wifi_cw", default=0, help="Wi-Fi minimum contention window")
-# @click.option("--max_wifi_cw", default=63, help="Wi-Fi maximum contention window")
 @click.option("--max_wifi_cw", default=0, help="Wi-Fi maximum contention window")
 @click.option("--wifi_r_limit", default=3, help="Wi-Fi retry limit")
-# @click.option("--min_nru_cw", default=15, help="NR-U minimum contention window")
 @click.option("--min_nru_cw", default=0, help="NR-U minimum contention window")
-#@click.option("--max_nru_cw", default=63, help="NR-U maximum contention window")
 @click.option("--max_nru_cw", default=0, help="NR-U maximum contention window")
 @click.option("--mcs_value", default=7, help="Value of mcs")
 @click.option("--synchronization_slot_duration", default=1000, help="Synchronization slot duration (μs)")
@@ -29,7 +236,6 @@ from coexistence_simpy.coexistence_simulator import *
 @click.option("--mcot", default=6, help="Max channel occupancy time for NR-U (ms)")
 @click.option("--nru_mode", type=click.Choice(["rs", "gap"], case_sensitive=False), default="gap",
               help="NR-U mode: rs' for reservation signal mode, 'gap' for gap-based mode")
-
 def changing_number_nodes(
         runs: int,
         seed: int,
@@ -54,37 +260,8 @@ def changing_number_nodes(
 
     For each node count between start_node_number and end_node_number,
     runs multiple simulations with the specified parameters and saves results.
-
-    Parameters:
-        runs: Number of simulation runs for each node count
-        seed: Base random seed (each run increments this)
-        start_node_number: Starting number of nodes to simulate
-        end_node_number: Ending number of nodes to simulate (inclusive)
-        simulation_time: Duration of each simulation run in seconds
-        min_wifi_cw: Minimum contention window size for Wi-Fi
-        max_wifi_cw: Maximum contention window size for Wi-Fi
-        wifi_r_limit: Maximum number of retransmission attempts for Wi-Fi
-        mcs_value: Modulation and Coding Scheme index for Wi-Fi
-        min_nru_cw: Minimum contention window size for NR-U
-        max_nru_cw: Maximum contention window size for NR-U
-        synchronization_slot_duration: Duration of NR-U synchronization slots in μs
-        max_sync_slot_desync: Maximum desynchronization offset for NR-U in μs
-        min_sync_slot_desync: Minimum desynchronization offset for NR-U in μs
-        nru_observation_slot: Number of observation slots for NR-U
-        mcot: Maximum Channel Occupancy Time for NR-U in milliseconds
-        nru_mode: NR-U operation mode ("rs" for reservation signal or "gap" for gap-based)
     """
-    # Lookup table for optimal contention window values based on node count
-    # Used in "variant" mode when CW parameters are set to 0
-    contention_window_table = {(1, 1): 196, (2, 2): 197, (3, 3): 197, (4, 4): 183, (5, 5): 161, (6, 6): 174,
-                               (7, 7): 174, (8, 8): 177}
-
-    # Ideal Values (commented out)
-    # contention_window_table = {(1, 1): 196, (2, 2): 197, (3, 3): 190, (4, 4): 190, (5, 5): 165, (6, 6): 174,
-    # (7, 7): 179, (8, 8): 185}
-
-    # Determine if we're using the "variant" mode where CW values are dynamically set from the table
-    # and gap mode is enabled
+    # Determine if we're using the "variant" mode where CW values are dynamically set
     is_variant = (
             min_wifi_cw == 0 and max_wifi_cw == 0 and
             min_nru_cw == 0 and max_nru_cw == 0 and
@@ -93,7 +270,7 @@ def changing_number_nodes(
 
     # Determine output file path based on configuration parameters
     if is_variant:
-        output_path = f"output/simulation_results/coex_gap-mode_desync-{min_sync_slot_desync}-{max_sync_slot_desync}_disabled-backoff_adjusted-cw-Varied_raw-data.csv"
+        output_path = f"output/simulation_results/coex_gap-mode_desync-{min_sync_slot_desync}-{max_sync_slot_desync}_disabled-backoff_dynamic-cw_raw-data.csv"
     else:
         output_path = build_output_path(
             min_sync_slot_desync,
@@ -120,11 +297,14 @@ def changing_number_nodes(
 
     # Loop through each node count in the specified range
     for num_nodes in range(start_node_number, end_node_number + 1):
+        print(f"\nProcessing node count: {num_nodes}")
 
-        # In variant mode, look up the optimal contention window value based on node count
+        # In variant mode, dynamically calculate the optimal contention window
         if is_variant:
-            cw = contention_window_table.get((num_nodes, num_nodes), 63)  # Default to 63 if not found
+            # Use dynamic calculation based on airtime fairness analysis
+            cw = find_optimal_cw(num_nodes, num_nodes)
             min_wifi_cw = max_wifi_cw = cw  # Set both min and max to the same value
+            print(f"Using calculated contention window {cw} for {num_nodes} nodes")
 
         # Initialize statistics tracking dictionaries for this node count
         backoff_counts = {key: {num_nodes: 0} for key in range(max_wifi_cw + 1)}
@@ -136,6 +316,7 @@ def changing_number_nodes(
         # Run multiple simulations with the same node count but different seeds
         for i in range(0, runs):
             curr_seed = seed + i
+            print(f"Running simulation {i + 1}/{runs} with seed {curr_seed}")
 
             # Run a single simulation with the current configuration
             simulate_coexistence(
@@ -185,18 +366,6 @@ def build_output_path(
 
     The filename encodes key simulation parameters to make results easily identifiable
     and to avoid overwriting previous results.
-
-    Parameters:
-        min_sync_slot_desync: Minimum synchronization slot desynchronization value
-        max_sync_slot_desync: Maximum synchronization slot desynchronization value
-        nru_mode: NR-U operation mode (rs or gap)
-        min_nru_cw: Minimum NR-U contention window
-        max_nru_cw: Maximum NR-U contention window
-        min_wifi_cw: Minimum WiFi contention window
-        max_wifi_cw: Maximum WiFi contention window
-
-    Returns:
-        str: Output file path for the simulation results
     """
     # Create base output directory
     base_dir = "output/simulation_results"
@@ -221,9 +390,9 @@ def build_output_path(
 
         elif max_sync_slot_desync > min_sync_slot_desync:
             if is_adjusted_cw_varied:
-                # Variable contention window from table
+                # Variable contention window from dynamic calculation
                 return os.path.join(base_dir,
-                                    f"coex_gap-mode_desync-{min_sync_slot_desync}-{max_sync_slot_desync}_disabled-backoff_adjusted-cw-Varied_raw-data.csv")
+                                    f"coex_gap-mode_desync-{min_sync_slot_desync}-{max_sync_slot_desync}_disabled-backoff_dynamic-cw_raw-data.csv")
 
             elif is_adjusted_cw_fixed:
                 # Fixed contention window value
@@ -242,6 +411,7 @@ def build_output_path(
 
     # If no path matches the parameter combination
     raise ValueError("Invalid or unsupported parameter combination.")
+
 
 if __name__ == "__main__":
     changing_number_nodes()
