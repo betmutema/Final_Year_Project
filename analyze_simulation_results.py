@@ -41,11 +41,15 @@ def setup_plot(xlabel='Number of Wi-Fi/NR-U Nodes', ylabel=None, ylim=None):
         Tuple of (figure, axes) objects configured with the specified settings
     """
     fig, ax = plt.subplots()
-    ax.set_xlabel(xlabel, fontsize=14)
+    ax.set_xlabel(xlabel, fontsize=20)
     if ylabel:
-        ax.set_ylabel(ylabel, fontsize=14)
+        ax.set_ylabel(ylabel, fontsize=20)
     if ylim:
         ax.set_ylim(ylim)
+
+    # Add grid lines
+    ax.grid(True, linestyle='--', alpha=0.7)
+
     return fig, ax
 
 
@@ -59,6 +63,7 @@ def save_and_close_figure(fig, filename):
     """
     # Ensure output directory exists
     os.makedirs(os.path.dirname(filename), exist_ok=True)
+    # ax.grid(True, linestyle='--', alpha=0.7) # Removed: ax is not defined here and grid is set elsewhere
     plt.tight_layout()
     # plt.show()  # Commented out to avoid displaying figures during batch processing
     plt.savefig(filename)
@@ -85,9 +90,10 @@ def plot_metrics(data_groups, markers, linestyles, legend_labels, ylim, xlabel, 
     for data, marker, linestyle, label in zip(data_groups, markers, linestyles, legend_labels):
         data.plot(marker=marker, legend=True, ylim=ylim, linestyle=linestyle, ax=ax)
 
-    ax.legend(legend_labels, loc='best')
+    ax.grid(True, linestyle='--', alpha=0.7)
+    ax.legend(legend_labels, loc='best', fontsize=15)
     # Explicitly set xlabel to override pandas default
-    ax.set_xlabel(xlabel, fontsize=14)
+    ax.set_xlabel(xlabel, fontsize=20)
     save_and_close_figure(fig, output_file)
 
 
@@ -165,11 +171,11 @@ def process_nru_rs_vs_gap_mode_comparison():
 
     # Create plots for each metric
     print("\nGenerating comparison plots for NR-U RS vs GAP:")
-    for metric, (rs_data, gap_data) in data_by_metric.items():
+    for metric, (rs_data_series, gap_data_series) in data_by_metric.items(): # Renamed for clarity
         print(f"  Processing {metric} comparison...")
         config = plot_configs[metric]
         plot_metrics(
-            [rs_data, gap_data],  # Data series to plot
+            [rs_data_series, gap_data_series],  # Data series to plot
             ["o", "s"],  # Markers for each series
             ["-", "--"],  # Line styles
             ['NR-U Reservation Signal Mode', 'NR-U Gap-Based Mode'],  # Legend labels
@@ -198,15 +204,15 @@ def compare_nru_rs_gap_wifi_performance():
     gap_data = load_data('output/simulation_results/nru-only_gap-mode_raw-data.csv')
 
     # Use glob to find Wi-Fi data files and combine them if multiple exist
-    wifi_data = glob.glob('output/simulation_results/wifi-only_nodes-*-*_raw-data.csv')
+    wifi_files = glob.glob('output/simulation_results/wifi-only_nodes-*-*_raw-data.csv') # Renamed for clarity
 
-    if not wifi_data:
+    if not wifi_files:
         print("  No Wi-Fi data files found with pattern 'wifi-only_nodes-*-*_raw-data.csv'")
         return
 
     # Load and combine all Wi-Fi data files
     wifi_data_frames = []
-    for file in wifi_data:
+    for file in wifi_files:
         data = load_data(file)
         if data is not None:
             wifi_data_frames.append(data)
@@ -216,10 +222,10 @@ def compare_nru_rs_gap_wifi_performance():
         return
 
     # Combine all Wi-Fi data frames
-    wifi_data = pd.concat(wifi_data_frames)
-    print(f"  Combined {len(wifi_data_frames)} Wi-Fi data files ({len(wifi_data)} rows total)")
+    wifi_data_combined = pd.concat(wifi_data_frames) # Renamed for clarity
+    print(f"  Combined {len(wifi_data_frames)} Wi-Fi data files ({len(wifi_data_combined)} rows total)")
 
-    if rs_data is None or gap_data is None or wifi_data is None:
+    if rs_data is None or gap_data is None or wifi_data_combined is None: # Check combined data
         return
 
     # Group data by node count and calculate means for different metrics
@@ -231,7 +237,7 @@ def compare_nru_rs_gap_wifi_performance():
         # Calculate metrics for each technology
         rs_metric = rs_data.groupby(['nru_node_count'])[f'nru_{metric}'].mean()
         gap_metric = gap_data.groupby(['nru_node_count'])[f'nru_{metric}'].mean()
-        wifi_metric = wifi_data.groupby(['wifi_node_count'])[f'wifi_{metric}'].mean()
+        wifi_metric = wifi_data_combined.groupby(['wifi_node_count'])[f'wifi_{metric}'].mean() # Use combined data
         data_by_metric[metric] = (rs_metric, gap_metric, wifi_metric)
 
     # Define plot configurations
@@ -255,11 +261,11 @@ def compare_nru_rs_gap_wifi_performance():
 
     # Create plots for each metric
     print("\nGenerating comparison plots for NR-U RS vs GAP vs Wi-Fi:")
-    for metric, (rs_data, gap_data, wifi_data) in data_by_metric.items():
+    for metric, (rs_data_series, gap_data_series, wifi_data_series) in data_by_metric.items(): # Renamed for clarity
         print(f"  Processing {metric} comparison...")
         config = plot_configs[metric]
         plot_metrics(
-            [rs_data, gap_data, wifi_data],  # Include wifi_data in the data list
+            [rs_data_series, gap_data_series, wifi_data_series],  # Include wifi_data in the data list
             ["^", "D", "v"],  # Markers for each technology
             ["-", "-", "--"],  # Line styles
             ['NR-U (RS mode)', 'NR-U (Gap mode)', 'Wi-Fi'],  # Legend labels
@@ -412,8 +418,8 @@ def process_coexistence_gap_timing_comparison():
              sync_results[f'nru_{metric}'], sync_results[f'wifi_{metric}']],
             ["o", "v", "D", "^"],  # Markers
             ["-", "--", "-.", "-"],  # Line styles
-            ['NR-U (desynchronized)', 'Wi-Fi (with desynchronized NR-U)',
-             'NR-U (synchronized frames)', 'Wi-Fi (with synchronized NR-U)'],
+            ['NR-U (desynchronized NR-U)', 'Wi-Fi (with desynchronized NR-U)',
+             'NR-U (synchronized NR-U)', 'Wi-Fi (with synchronized NR-U)'],
             config['ylim'],
             'Number of Wi-Fi/NR-U Nodes',
             config['ylabel'],
@@ -436,46 +442,46 @@ def compare_coexistence_gap_desync_with_without_backoff():
 
     print("Loading coexistence desync and backoff data...")
     # Use glob to find and filter relevant data files
-    desync_results = glob.glob('output/simulation_results/coex_gap-mode_desync-*-*_raw-data.csv')
-    backoff_results = glob.glob('output/simulation_results/coex_gap-mode_desync-*-*_disabled-backoff_raw-data.csv')
+    desync_files = glob.glob('output/simulation_results/coex_gap-mode_desync-*-*_raw-data.csv') # Renamed for clarity
+    backoff_files = glob.glob('output/simulation_results/coex_gap-mode_desync-*-*_disabled-backoff_raw-data.csv') # Renamed for clarity
 
     # Filter out files that don't match our criteria
-    desync_results = [file for file in desync_results if not "disabled-backoff" in file.lower()]
-    backoff_results = [file for file in backoff_results if not "adjusted" in file.lower()]
+    desync_files = [file for file in desync_files if not "disabled-backoff" in file.lower()]
+    backoff_files = [file for file in backoff_files if not "adjusted" in file.lower()] # Assuming "adjusted" means "dynamic-cw" files
 
-    if not desync_results:
-        print("  No data files found with pattern 'coex_gap-mode_desync-*-*_raw-data.csv'")
+    if not desync_files:
+        print("  No data files found with pattern 'coex_gap-mode_desync-*-*_raw-data.csv' (excluding disabled-backoff)")
         return
 
-    if not backoff_results:
-        print("  No data files found with pattern 'coex_gap-mode_desync-*-*_disabled-backoff_raw-data.csv'")
+    if not backoff_files:
+        print("  No data files found with pattern 'coex_gap-mode_desync-*-*_disabled-backoff_raw-data.csv' (excluding adjusted/dynamic-cw)")
         return
 
     # Load and combine all desync data files (standard backoff)
     desync_results_frames = []
-    for file in desync_results:
+    for file in desync_files:
         data = load_data(file)
         if data is not None:
             desync_results_frames.append(data)
 
     # Load and combine all disabled backoff data files
     backoff_results_frames = []
-    for file in backoff_results:
+    for file in backoff_files:
         data = load_data(file)
         if data is not None:
             backoff_results_frames.append(data)
 
     if not desync_results_frames or not backoff_results_frames:
-        print("  Failed to load any data files")
+        print("  Failed to load any data files for comparison")
         return
 
     # Combine all desync data frames
-    desync_data = pd.concat(desync_results_frames)
-    print(f"  Combined {len(desync_results_frames)} Desync data files ({len(desync_data)} rows total)")
+    desync_data_combined = pd.concat(desync_results_frames) # Renamed for clarity
+    print(f"  Combined {len(desync_results_frames)} Desync data files ({len(desync_data_combined)} rows total)")
 
     # Combine all backoff data frames
-    backoff_data = pd.concat(backoff_results_frames)
-    print(f"  Combined {len(backoff_results_frames)} Backoff data files ({len(backoff_data)} rows total)")
+    backoff_data_combined = pd.concat(backoff_results_frames) # Renamed for clarity
+    print(f"  Combined {len(backoff_results_frames)} Backoff data files ({len(backoff_data_combined)} rows total)")
 
     # Group data and calculate means for different metrics
     metrics = ['channel_occupancy', 'channel_efficiency', 'collision_probability']
@@ -485,12 +491,12 @@ def compare_coexistence_gap_desync_with_without_backoff():
     # Process metrics for both desync and backoff data
     for metric in metrics:
         # Calculate metrics for desync data (with standard backoff)
-        desync_nru_metric = desync_data.groupby(['nru_node_count'])[f'nru_{metric}'].mean()
-        desync_wifi_metric = desync_data.groupby(['wifi_node_count'])[f'wifi_{metric}'].mean()
+        desync_nru_metric = desync_data_combined.groupby(['nru_node_count'])[f'nru_{metric}'].mean()
+        desync_wifi_metric = desync_data_combined.groupby(['wifi_node_count'])[f'wifi_{metric}'].mean()
 
         # Calculate metrics for disabled backoff data
-        backoff_nru_metric = backoff_data.groupby(['nru_node_count'])[f'nru_{metric}'].mean()
-        backoff_wifi_metric = backoff_data.groupby(['wifi_node_count'])[f'wifi_{metric}'].mean()
+        backoff_nru_metric = backoff_data_combined.groupby(['nru_node_count'])[f'nru_{metric}'].mean()
+        backoff_wifi_metric = backoff_data_combined.groupby(['wifi_node_count'])[f'wifi_{metric}'].mean()
 
         # Store the results
         data_by_metric[metric] = (desync_nru_metric, desync_wifi_metric, backoff_nru_metric, backoff_wifi_metric)
@@ -550,23 +556,23 @@ def process_coexistence_nru_gap_desync_adjustcw():
 
     print("Loading disabled backoff and adjusted CW data...")
     # Standard disabled backoff configuration
-    disabled_backoff = process_coexistence_data(
+    disabled_backoff_results = process_coexistence_data( # Renamed for clarity
         'output/simulation_results/coex_gap-mode_desync-0-1000_disabled-backoff_raw-data.csv',
         'disabled')
-    # Disabled backoff with varied (adjusted) contention window
-    adjusted_cw = process_coexistence_data(
-        'output/simulation_results/coex_gap-mode_desync-0-1000_disabled-backoff_adjusted-cw-Varied_raw-data.csv',
+    # Disabled backoff with dynamic contention window
+    adjusted_cw_results = process_coexistence_data( # Renamed for clarity
+        'output/simulation_results/coex_gap-mode_desync-0-1000_disabled-backoff_dynamic-cw_raw-data.csv',
         'adjusted')
 
-    if disabled_backoff is None or adjusted_cw is None:
+    if disabled_backoff_results is None or adjusted_cw_results is None:
         return
 
     # Create descriptive labels for the legend
     labels = [
-        'NR-U (desync, no backof)',
+        'NR-U (desync, no backoff)', # Corrected typo: backof -> backoff
         'Wi-Fi (with NR-U: desync, no backoff)',
-        'NR-U (desync, no backoff, adj. CW)',
-        'Wi-Fi (with NR-U: desync, no backoff, adj. CW)'
+        'NR-U (Optimized Gap Mode, adj.CW)',
+        'Wi-Fi (Optimized Gap Mode, adj.CW)'
     ]
 
     # Define plot configurations
@@ -594,8 +600,8 @@ def process_coexistence_nru_gap_desync_adjustcw():
         print(f"  Processing {metric} comparison...")
         plot_metrics(
             # Data series for both configurations
-            [disabled_backoff[f'nru_{metric}'], disabled_backoff[f'wifi_{metric}'],
-             adjusted_cw[f'nru_{metric}'], adjusted_cw[f'wifi_{metric}']],
+            [disabled_backoff_results[f'nru_{metric}'], disabled_backoff_results[f'wifi_{metric}'],
+             adjusted_cw_results[f'nru_{metric}'], adjusted_cw_results[f'wifi_{metric}']],
             ["o", "D", "s", "h"],  # Markers
             ["-", "--", "-", "-."],  # Line styles
             labels,
@@ -621,16 +627,16 @@ def process_coexistence_rs_vs_coexistence_modified():
 
     print("Loading coexistence rs and coexistence modified data...")
     # Load data for standard RS mode
-    coex_rs = process_coexistence_data(
+    coex_rs_results = process_coexistence_data( # Renamed for clarity
         'output/simulation_results/coex_rs-mode_raw-data.csv',
         'rs')
 
     # Load data for modified GAP mode (with desync, disabled backoff, and adjusted CW)
-    coex_mod = process_coexistence_data(
-        'output/simulation_results/coex_gap-mode_desync-0-1000_disabled-backoff_adjusted-cw-Varied_raw-data.csv',
+    coex_mod_results = process_coexistence_data( # Renamed for clarity
+        'output/simulation_results/coex_gap-mode_desync-0-1000_disabled-backoff_dynamic-cw_raw-data.csv',
         'mod')
 
-    if coex_rs is None or coex_mod is None:
+    if coex_rs_results is None or coex_mod_results is None:
         print("  Failed to load one or both of the required data files")
         return
 
@@ -638,8 +644,8 @@ def process_coexistence_rs_vs_coexistence_modified():
     labels = [
         'NR-U (standard RS mode)',
         'Wi-Fi (with RS mode NR-U)',
-        'NR-U (modified Gap mode: desync, no backoff, adj.CW)',
-        'Wi-Fi (with modified Gap mode NR-U)'
+        'NR-U (Optimized Gap mode, adj.CW)',
+        'Wi-Fi (with Optimized Gap mode NR-U)'
     ]
 
     # Define plot configurations
@@ -667,8 +673,8 @@ def process_coexistence_rs_vs_coexistence_modified():
         print(f"  Processing {metric} comparison...")
         # Plot the metrics using the generic plotting function
         plot_metrics(
-            [coex_rs[f'nru_{metric}'], coex_rs[f'wifi_{metric}'],
-             coex_mod[f'nru_{metric}'], coex_mod[f'wifi_{metric}']],
+            [coex_rs_results[f'nru_{metric}'], coex_rs_results[f'wifi_{metric}'],
+             coex_mod_results[f'nru_{metric}'], coex_mod_results[f'wifi_{metric}']],
             ["o", "D", "s", "h"],  # Markers for each data series
             ["-", "--", "-.", "-."],  # Line styles for each data series
             labels,  # Legend labels
@@ -684,16 +690,31 @@ def list_output_files():
     """List all generated output files"""
     # output_files = glob.glob('output/metrics_visualizations/comparative_analysis/*.png')
     output_files = glob.glob('output/metrics_visualizations/comparative_analysis/**/*.png', recursive=True)
-
+    if output_files:
+        print("Generated plot files:")
+        for f in sorted(output_files):
+            print(f"  - {f}")
+    else:
+        print("  No plot files found in output/metrics_visualizations/comparative_analysis/")
     print(f"Total number of generated plots: {len(output_files)}")
 
 if __name__ == "__main__":
     print("\n=== Starting Comparison Metrics Visualization Process ===\n")
 
     # Ensure output directories exist
-    output_dir = 'output/metrics_visualizations/comparative_analysis'
-    os.makedirs(output_dir, exist_ok=True)
-    print(f"Output directory created: {output_dir}")
+    # These directories are created by plot_metrics via save_and_close_figure,
+    # but it's good practice to ensure the base 'comparative_analysis' dir exists.
+    sub_dirs = [
+        'output/metrics_visualizations/comparative_analysis/nru_modes',
+        'output/metrics_visualizations/comparative_analysis/access_methods',
+        'output/metrics_visualizations/comparative_analysis/coexistence_modes',
+        'output/metrics_visualizations/comparative_analysis/synchronization_studies',
+        'output/metrics_visualizations/comparative_analysis/disabling_back_off',
+        'output/metrics_visualizations/comparative_analysis/contention_window_adjustments'
+    ]
+    for sub_dir in sub_dirs:
+        os.makedirs(sub_dir, exist_ok=True)
+    print(f"Output directories ensured under: output/metrics_visualizations/comparative_analysis")
 
     process_nru_rs_vs_gap_mode_comparison()
     compare_nru_rs_gap_wifi_performance()
