@@ -51,9 +51,10 @@ def create_plot(df, x_col, y_cols, labels, title, xlabel, ylabel, output_path, y
         data.plot(marker="o", linestyle=linestyle, label=label, ax=ax) if i % 2 == 0 else data.plot(marker="s", linestyle=linestyle, label=label, ax=ax)
 
     ax.set_ylim(*ylim)
-    ax.legend(loc = 'best')
-    ax.set_xlabel(xlabel, fontsize=14)
-    ax.set_ylabel(ylabel, fontsize=14)
+    ax.legend(loc = 'best', fontsize=15)
+    ax.set_xlabel(xlabel, fontsize=20)
+    ax.set_ylabel(ylabel, fontsize=20)
+    ax.grid(True, linestyle='--', alpha=0.7)
     # ax.set_title(title, fontsize=14)
     plt.tight_layout()
 
