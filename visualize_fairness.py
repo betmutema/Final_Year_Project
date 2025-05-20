@@ -17,7 +17,7 @@ def set_plot_style():
         'axes.titlesize': 20,  # Increased title font size
         'xtick.labelsize': 16,  # Increased tick label font size
         'ytick.labelsize': 16,  # Increased tick label font size
-        'legend.fontsize': 14,  # Increased legend font size
+        'legend.fontsize': 15,  # Increased legend font size
     })
 
     # Define a colorblind-friendly palette
@@ -56,11 +56,11 @@ def get_custom_legend(file_basename):
     """Extract a custom legend name from the filename"""
     # Special cases for specific filenames
     specific_mappings = {
-        'coex_gap-mode_raw-data': 'NR-U Gap Mode',
+        'coex_gap-mode_raw-data': 'NR-U Default Gap Mode',
         'coex_rs-mode_raw-data': 'NR-U RS Mode',
-        'coex_gap-mode_desync-0-1000_raw-data': 'NR-U Gap Mode: Desync',
-        'coex_gap-mode_desync-0-1000_disabled-backoff_raw-data': 'NR-U Gap Mode: Desync, no Backoff',
-        'coex_gap-mode_desync-0-1000_disabled-backoff_dynamic-cw_raw-data': 'NR-U Gap Mode: Desync, no Backoff, adj.CW'
+        'coex_gap-mode_desync-0-1000_raw-data': 'NR-U Default Gap Mode: Desync',
+        'coex_gap-mode_desync-0-1000_disabled-backoff_raw-data': 'NR-U Default Gap Mode: Desync, no Backoff',
+        'coex_gap-mode_desync-0-1000_disabled-backoff_dynamic-cw_raw-data': 'NR-U Optimized Gap Mode: adj.CW'
     }
 
     # Check if this is one of our specific mappings
@@ -104,11 +104,11 @@ def create_fairness_plot(x_data, y_data, title, xlabel, ylabel, output_path, yli
     ax.plot(x_data, y_data, marker=marker, linestyle=linestyle, color=color, linewidth=2)
 
     if legend_title:
-        ax.legend([legend_title], loc='best', frameon=True, shadow=True, fontsize=14)
+        ax.legend([legend_title], loc='best', frameon=True, shadow=True, fontsize=15)
 
     ax.set_title(title, fontsize=20)
-    ax.set_xlabel(xlabel, fontsize=18)
-    ax.set_ylabel(ylabel, fontsize=18)
+    ax.set_xlabel(xlabel, fontsize=20)
+    ax.set_ylabel(ylabel, fontsize=20)
     ax.set_ylim(ylim)
     ax.grid(True, linestyle='--', alpha=0.7)  # Added grid with dashed lines
     ax.tick_params(axis='both', which='major', labelsize=16)
@@ -124,8 +124,7 @@ def create_fairness_plot(x_data, y_data, title, xlabel, ylabel, output_path, yli
     plt.close(fig)
 
 
-def plot_consolidated_fairness(
-                               input_dir='output/simulation_results',
+def plot_consolidated_fairness(                               input_dir='output/simulation_results',
                                output_dir='output/metrics_visualizations/fairness_plots/consolidated'
                               ):
     """
@@ -151,19 +150,20 @@ def plot_consolidated_fairness(
         # Setup figures for consolidated plots
         fig_jfi = plt.figure(figsize=(10, 6))
         ax_jfi = fig_jfi.add_subplot(111)
-        ax_jfi.set_title("Jain's Fairness Index Comparison", fontsize=20)
-        ax_jfi.set_xlabel('Number of Nodes (WiFi and NRU)', fontsize=18)
-        ax_jfi.set_ylabel("Jain's Fairness Index", fontsize=18)
+        # ax_jfi.set_title("Jain's Fairness Index Comparison", fontsize=20)
+        ax_jfi.set_xlabel('Number of WiFi/NRU Nodes', fontsize=20)
+        ax_jfi.set_ylabel("Jain's Fairness Index", fontsize=20)
         ax_jfi.grid(True, linestyle='--', alpha=0.7)  # Added grid with dashed lines
         ax_jfi.set_ylim(0.4, 1.05)
         ax_jfi.tick_params(axis='both', which='major', labelsize=16)
 
         fig_jaf = plt.figure(figsize=(10, 6))
         ax_jaf = fig_jaf.add_subplot(111)
-        ax_jaf.set_title("Joint Airtime Fairness Comparison", fontsize=20)
-        ax_jaf.set_xlabel('Number of Nodes (WiFi and NRU)', fontsize=18)
-        ax_jaf.set_ylabel("Joint Airtime Fairness", fontsize=18)
+       # ax_jaf.set_title("Joint Airtime Fairness Comparison", fontsize=20)
+        ax_jaf.set_xlabel('Number of WiFi/NRU Nodes', fontsize=20)
+        ax_jaf.set_ylabel("Joint Airtime Fairness", fontsize=20)
         ax_jaf.grid(True, linestyle='--', alpha=0.7)  # Added grid with dashed lines
+        ax_jaf.set_ylim(0, 1.05)
         ax_jaf.tick_params(axis='both', which='major', labelsize=16)
 
         # Define line styles, markers, and colors
@@ -216,14 +216,14 @@ def plot_consolidated_fairness(
                 print(f"  Error processing {csv_file}: {e}")
 
         # Finalize and save the plots
-        ax_jfi.legend(loc='best', frameon=True, shadow=True, fontsize=14)
+        ax_jfi.legend(loc='best', frameon=True, shadow=True, fontsize=15)
         plt.figure(fig_jfi.number)
         plt.tight_layout()
         output_file_jfi = os.path.join(output_dir, "consolidated_jains_fairness_index.png")
         plt.savefig(output_file_jfi, dpi=300)
         print(f"  Saved consolidated JFI plot to {output_file_jfi}")
 
-        ax_jaf.legend(loc='best', frameon=True, shadow=True, fontsize=14)
+        ax_jaf.legend(loc='best', frameon=True, shadow=True, fontsize=15)
         plt.figure(fig_jaf.number)
         plt.tight_layout()
         output_file_jaf = os.path.join(output_dir, "consolidated_joint_airtime_fairness.png")
@@ -289,7 +289,7 @@ def plot_individual_fairness(input_dir='output/simulation_results', output_dir='
                     df_avg['wifi_node_count'],
                     df_avg["jain's_fairness_index"],
                     f"Jain's Fairness Index\n({custom_title})",
-                    'Number of Nodes (WiFi and NRU)',
+                    'Number of WiFi/NRU Nodes',
                     "Jain's Fairness Index",
                     jfi_output_path,
                     ylim=(0.4, 1.05),
@@ -302,10 +302,10 @@ def plot_individual_fairness(input_dir='output/simulation_results', output_dir='
                     df_avg['wifi_node_count'],
                     df_avg["joint_airtime_fairness"],
                     f"Joint Airtime Fairness\n({custom_title})",
-                    'Number of Nodes (WiFi and NRU)',
+                    'Number of WiFi/NRU Nodes',
                     "Joint Airtime Fairness",
                     jaf_output_path,
-                    ylim=(0, 1),
+                    ylim=(0, 1.05),
                     color='green',
                     marker='s',
                     linestyle='--'
@@ -391,8 +391,8 @@ def plot_fairness_by_categories(input_dir='output/simulation_results', output_di
             fig_jfi = plt.figure(figsize=(10, 6))
             ax_jfi = fig_jfi.add_subplot(111)
             ax_jfi.set_title(f"Jain's Fairness Index - {config['title']}", fontsize=20)
-            ax_jfi.set_xlabel('Number of Nodes (WiFi and NRU)', fontsize=18)
-            ax_jfi.set_ylabel("Jain's Fairness Index", fontsize=18)
+            ax_jfi.set_xlabel('Number of WiFi/NRU Nodes', fontsize=20)
+            ax_jfi.set_ylabel("Jain's Fairness Index", fontsize=20)
             ax_jfi.grid(True, linestyle='--', alpha=0.7)  # Added grid with dashed lines
             ax_jfi.set_ylim(0.4, 1.05)
             ax_jfi.tick_params(axis='both', which='major', labelsize=16)
@@ -400,9 +400,10 @@ def plot_fairness_by_categories(input_dir='output/simulation_results', output_di
             fig_jaf = plt.figure(figsize=(10, 6))
             ax_jaf = fig_jaf.add_subplot(111)
             ax_jaf.set_title(f"Joint Airtime Fairness - {config['title']}", fontsize=20)
-            ax_jaf.set_xlabel('Number of Nodes (WiFi and NRU)', fontsize=18)
-            ax_jaf.set_ylabel("Joint Airtime Fairness", fontsize=18)
+            ax_jaf.set_xlabel('Number of WiFi/NRU Nodes', fontsize=20)
+            ax_jaf.set_ylabel("Joint Airtime Fairness", fontsize=20)
             ax_jaf.grid(True, linestyle='--', alpha=0.7)  # Added grid with dashed lines
+            ax_jfi.set_ylim(0, 1.05)
             ax_jaf.tick_params(axis='both', which='major', labelsize=16)
 
             # Define line styles, markers, and colors
@@ -453,14 +454,14 @@ def plot_fairness_by_categories(input_dir='output/simulation_results', output_di
                     print(f"    Error processing {csv_file} for category {category}: {e}")
 
             # Finalize and save the plots
-            ax_jfi.legend(loc='best', frameon=True, shadow=True, fontsize=14)
+            ax_jfi.legend(loc='best', frameon=True, shadow=True, fontsize=15)
             plt.figure(fig_jfi.number)
             plt.tight_layout()
             output_file_jfi = os.path.join(category_output_dir, f"{category}_jains_fairness_index.png")
             plt.savefig(output_file_jfi, dpi=300)
             print(f"    Saved {category} JFI plot to {output_file_jfi}")
 
-            ax_jaf.legend(loc='best', frameon=True, shadow=True, fontsize=14)
+            ax_jaf.legend(loc='best', frameon=True, shadow=True, fontsize=15)
             plt.figure(fig_jaf.number)
             plt.tight_layout()
             output_file_jaf = os.path.join(category_output_dir, f"{category}_joint_airtime_fairness.png")
