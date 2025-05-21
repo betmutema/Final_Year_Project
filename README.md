@@ -40,14 +40,6 @@ python coexistence_node_sweep.py --start_node_number 1 --end_node_number 10 --nr
 python contention_window_sweep.py --cw_start 32 --cw_end 512 --cw_step 48 --ap_number 2 --gnb_number 2
 ```
 
-3. **Wi-Fi-Only or NR-U-Only Simulations:**
-```bash
-# Wi-Fi-only sweep
-python wifi_node_sweep.py --start_node_number 1 --end_node_number 10
-
-# NR-U-only sweep (gap mode)
-python nru_node_sweep.py --nru_mode gap --start_node_number 1 --end_node_number 10
-```
 For detailed parameter explanations, use --help with any ```*_node_sweep.py``` script for example:
 ```bash
 python coexistence_node_sweep.py --help
