@@ -173,11 +173,11 @@ To generate plots:
         -   **Output:** Plots are saved in `output/metrics_visualizations/comparative_analysis/` subdirectories, categorized by the type of comparison (e.g., `nru_modes/`, `access_methods/`, `coexistence_modes/`).
 
     *   **General Network Metrics Visualization:**
-        This script generates plots for individual technology performance (e.g., Wi-Fi only, NR-U only with specific settings) and for specific coexistence scenarios that might not be covered by the main comparative analysis script. It processes various `coex_*.csv` and `*-only_*.csv` files.
+        This script generates plots for individual technology performance (e.g., Wi-Fi only, NR-U only with specific settings) and for specific coexistence scenarios that might not be covered by the main comparative analysis script. It processes various `coex_*.csv` files.
         ```bash
         python visualize_network_metrics.py
         ```
-        -   **Output:** Plots are saved in `output/metrics_visualizations/individual_systems/` (for Wi-Fi/NR-U only) and `output/metrics_visualizations/coexistence_strategies/` (for specific coexistence setups).
+        -   **Output:** Plots are saved in `output/metrics_visualizations/coexistence_strategies/` (for specific coexistence setups).
 
     *   **Fairness Metrics Visualization:**
         This script focuses specifically on Jain's Fairness Index and Joint Airtime Fairness. It can generate plots in several ways:
