@@ -155,5 +155,72 @@ Options:
   --nru_mode [rs|gap]                NR-U mode: 'rs' or 'gap' (default: gap)
   --help                             Show this message and exit.
 ```
-## Analyzing Results & Generating Plots
-After running simulations, use the analysis scripts to generate plots:
+### Analyzing Results & Generating Plots
+
+After running simulations, the generated CSV files in `output/simulation_results/` can be processed using the provided Python analysis scripts to generate various plots. These scripts automate the extraction of key metrics and their visualization, enabling comparative analysis of different coexistence strategies and parameter settings.
+
+To generate plots:
+
+1.  **Navigate to the project's root directory** in your terminal.
+
+2.  **Run the desired analysis script.** Below are the primary scripts and their general purpose:
+
+    *   **Comprehensive Comparative Analysis:**
+        This script is the main entry point for comparing multiple coexistence strategies and the impact of sequential optimizations (e.g., NR-U RS vs. Gap, desynchronization, backoff disabling, CW adjustments).
+        ```bash
+        python analyze_simulation_results.py
+        ```
+        -   **Output:** Plots are saved in `output/metrics_visualizations/comparative_analysis/` subdirectories, categorized by the type of comparison (e.g., `nru_modes/`, `access_methods/`, `coexistence_modes/`).
+
+    *   **General Network Metrics Visualization:**
+        This script generates plots for individual technology performance (e.g., Wi-Fi only, NR-U only with specific settings) and for specific coexistence scenarios that might not be covered by the main comparative analysis script. It processes various `coex_*.csv` and `*-only_*.csv` files.
+        ```bash
+        python visualize_network_metrics.py
+        ```
+        -   **Output:** Plots are saved in `output/metrics_visualizations/individual_systems/` (for Wi-Fi/NR-U only) and `output/metrics_visualizations/coexistence_strategies/` (for specific coexistence setups).
+
+    *   **Fairness Metrics Visualization:**
+        This script focuses specifically on Jain's Fairness Index and Joint Airtime Fairness. It can generate plots in several ways:
+        ```bash
+        python visualize_fairness.py
+        ```
+        By default, it attempts to generate:
+        -   Consolidated plots (comparing multiple simulation files on one graph).
+        -   Individual plots (one set of fairness plots per relevant simulation file).
+        -   Category-based plots (grouping similar scenarios).
+        You can control which types of plots are generated using flags like `--no-individual`, `--no-categories`, or `--no-consolidated`.
+        -   **Output:** Plots are saved in `output/metrics_visualizations/fairness_plots/` subdirectories (`consolidated/`, `individual/`, `categories/`).
+
+    *   **Wi-Fi Contention Window Impact Visualization:**
+        This script processes the output from `contention_window_sweep.py` (files typically named `airtime_fairness_*.csv`) to show how varying the Wi-Fi Contention Window size affects channel occupancy for both Wi-Fi and NR-U. This is crucial for understanding the trade-offs involved in CW adjustments.
+        ```bash
+        python visualize_cw_impact.py
+        ```
+        -   **Output:** Plots are saved in `output/metrics_visualizations/airtime_fairness/`.
+
+    *   **Asymmetric Network Metrics Visualization:**
+        This script is dedicated to visualizing the performance (channel occupancy, efficiency, collision probability, fairness) for asymmetric node configurations (i.e., unequal numbers of Wi-Fi APs and NR-U gNBs). It typically processes files like `coex_asymmetric_*dynamic-cw*.csv`.
+        ```bash
+        python visualize_asymetric_network_metrics.py
+        ```
+        You can optionally provide specific input and output directories:
+        ```bash
+        python visualize_asymetric_network_metrics.py --input output/simulation_results/your_asymmetric_data.csv --output-dir output/my_asymmetric_plots
+        ```
+        -   **Output:** Plots are saved by default in `output/plots/` or the specified output directory.
+
+### Output Locations for Plots:
+
+-   **Raw Simulation Data (CSV):** All simulation scripts save their output to `output/simulation_results/`.
+-   **Generated Plots (PNG):**
+    -   `analyze_simulation_results.py`: `output/metrics_visualizations/comparative_analysis/`
+    -   `visualize_network_metrics.py`: `output/metrics_visualizations/individual_systems/` and `output/metrics_visualizations/coexistence_strategies/`
+    -   `visualize_fairness.py`: `output/metrics_visualizations/fairness_plots/`
+    -   `visualize_cw_impact.py`: `output/metrics_visualizations/airtime_fairness/`
+    -   `visualize_asymetric_network_metrics.py`: `output/plots/` (default)
+
+**Note:**
+Ensure that the simulation CSV files required by an analysis script are present in the `output/simulation_results/` directory before running the analysis script. The scripts are generally designed to find relevant files based on naming conventions.
+
+## Acknowledgements
+This simulation framework builds upon the foundational work of Jakub Cichoń's "A Wi-Fi and NR-U Coexistence Channel Access Simulator based on the Python SimPy Library" (AGH University of Science and Technology, 2022). His publicly available resources and simulator structure provided an essential starting point for this project.
