@@ -139,7 +139,7 @@ Options:
   --seed INTEGER                     Seed for simulation (default: 1)
   --start_node_number INTEGER        Starting number of nodes (required)
   --end_node_number INTEGER          Ending number of nodes (required)
-  --simulation_time FLOAT            Simulation duration in μs (default: 100.0)
+  --simulation_time FLOAT            Simulation duration in μs (default: 100.0 s)
   --min_wifi_cw INTEGER              Wi-Fi minimum contention window (default: 0)
   --max_wifi_cw INTEGER              Wi-Fi maximum contention window (default: 0)
   --wifi_r_limit INTEGER             Wi-Fi retry limit (default: 3)
